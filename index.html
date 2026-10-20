@@ -205,7 +205,7 @@
     .modal-card {
       background: #fff;
       width: 90%;
-      max-width: 900px;
+      max-width: 950px;
       max-height: 85vh;
       border-radius: 8px;
       display: flex;
@@ -273,21 +273,32 @@
     }
 
     .cargos-lista li {
-      padding: 4px 0 4px 15px;
+      padding: 6px 0 6px 15px;
       font-size: 13px;
+      border-bottom: 1px dashed #f1f5f9;
       display: flex;
       justify-content: space-between;
-      color: #475569;
-      border-bottom: 1px dashed #f8fafc;
+      align-items: center;
     }
 
-    .cargo-qtd {
-      background: #f1f5f9;
-      padding: 2px 8px;
+    .cargo-detalhes {
+      display: flex;
+      gap: 15px;
+      color: #334155;
+    }
+
+    .badge-nivel {
+      background: #e2e8f0;
+      padding: 2px 6px;
       border-radius: 4px;
+      font-size: 11px;
       font-weight: 600;
       color: var(--secondary);
-      font-size: 12px;
+    }
+
+    .badge-subst {
+      color: var(--accent-green);
+      font-weight: 600;
     }
 
     .table-card {
@@ -364,10 +375,16 @@
 
   <div id="tab-dashboard" class="tab-content active">
     <div class="kpi-grid">
-      <div class="kpi-card clickable" onclick="abrirModalLotacoes()">
+      <div class="kpi-card clickable" onclick="abrirModalTotal()">
         <div class="kpi-title">Total de Cargos</div>
         <div class="kpi-value" id="kpi-total">0</div>
         <div class="kpi-sub" id="kpi-lotacoes">0 lotações (🖱️ Ver Estrutura)</div>
+      </div>
+      <!-- NOVO CARD: Cargos c/ Competência para Substituição -->
+      <div class="kpi-card clickable purple" onclick="abrirModalElegiveis()">
+        <div class="kpi-title">Cargos c/ Competência p/ Substituição</div>
+        <div class="kpi-value" id="kpi-elegiveis" style="color: var(--accent-purple);">0</div>
+        <div class="kpi-sub">Níveis CCESP/FCESP 1.0 a 1.19 (🖱️ Detalhes)</div>
       </div>
       <div class="kpi-card green">
         <div class="kpi-title">Com Substituto</div>
@@ -427,17 +444,34 @@
     </div>
   </div>
 
-  <div id="modalLotacoes" class="modal-overlay">
+  <!-- MODAL DE TOTAL DE CARGOS -->
+  <div id="modalTotal" class="modal-overlay">
     <div class="modal-card">
       <div class="modal-header">
-        <h3>Estrutura Consolidada: Títulos, Locais e Cargos</h3>
-        <button class="close-btn" onclick="fecharModalLotacoes()">&times;</button>
+        <h3>Estrutura Consolidada: Títulos, Locais e Cargos (Total)</h3>
+        <button class="close-btn" onclick="fecharModalTotal()">&times;</button>
       </div>
       <div class="modal-body">
         <div class="filter-bar" style="margin-bottom: 15px;">
-          <input type="text" id="filtroModal" placeholder="Filtrar por superintendência, lotação ou cargo..." onkeyup="filtrarModalLotacoes()">
+          <input type="text" id="filtroModalTotal" placeholder="Filtrar por superintendência, lotação ou cargo..." onkeyup="filtrarModalTotal()">
         </div>
-        <div id="conteudoModalLotacoes"></div>
+        <div id="conteudoModalTotal"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- MODAL DE CARGOS COM COMPETÊNCIA PARA SUBSTITUIÇÃO -->
+  <div id="modalElegiveis" class="modal-overlay">
+    <div class="modal-card">
+      <div class="modal-header">
+        <h3>Cargos com Competência para Substituição (Níveis 1.0 a 1.19)</h3>
+        <button class="close-btn" onclick="fecharModalElegiveis()">&times;</button>
+      </div>
+      <div class="modal-body">
+        <div class="filter-bar" style="margin-bottom: 15px;">
+          <input type="text" id="filtroModalElegiveis" placeholder="Filtrar por superintendência, lotação, titular ou substituto..." onkeyup="filtrarModalElegiveis()">
+        </div>
+        <div id="conteudoModalElegiveis"></div>
       </div>
     </div>
   </div>
@@ -17728,7 +17762,8 @@
 
     let chartCoberturaInstance = null;
     let chartAssinaturasInstance = null;
-    let estruturaHierarquicaCache = {};
+    let estruturaTotalCache = {};
+    let estruturaElegiveisCache = {};
 
     function mudarAba(nomeAba) {
       document.querySelectorAll('.tab-content').forEach(el => el.classList.remove('active'));
@@ -17743,6 +17778,25 @@
       }
     }
 
+    // Regra: CCESP/FCESP 1.0 até 1.19
+    function ehElegivel(nivelStr) {
+      if (!nivelStr) return false;
+      const str = String(nivelStr).toUpperCase().trim();
+      const match = str.match(/(CCESP|FCESP)\s*([0-9]+)(?:\.([0-9]+))?/);
+      if (!match) return false;
+      const major = parseInt(match[2]);
+      const minor = match[3] ? parseInt(match[3]) : 0;
+      return (major === 1 && minor >= 0 && minor <= 19);
+    }
+
+    // Tenta encontrar o nível do substituto procurando nas colunas da linha
+    function getNivelSubstituto(item) {
+      const keys = Object.keys(item);
+      const chaveNivelSubst = keys.find(k => k.toLowerCase().includes('nivel subst') || k.toLowerCase().includes('nível subst'));
+      if (chaveNivelSubst && item[chaveNivelSubst]) return item[chaveNivelSubst];
+      return '-';
+    }
+
     function processarTudo() {
       if (!DADOS_PLANILHA || DADOS_PLANILHA.length === 0) {
         console.warn("Nenhum dado encontrado na variável DADOS_PLANILHA.");
@@ -17751,39 +17805,54 @@
 
       const totalCargos = DADOS_PLANILHA.length;
       const lotacoesSet = new Set();
-      estruturaHierarquicaCache = {};
+      estruturaTotalCache = {};
+      estruturaElegiveisCache = {};
       const assinaturasPorLotacao = {};
       let comSubstituto = 0;
       let providasSemSubst = 0;
       let semTitular = 0;
       let atosBloco = 0;
       let qtdRevogacoes = 0;
+      let totalElegiveis = 0;
 
       DADOS_PLANILHA.forEach(item => {
         const grupo = item['GrupoHierarquico'] || 'Unidade Central';
         const lotacao = item['Lotação'] || 'Não informada';
         const cargo = item['Cargo'] || 'Cargo não informado';
+        const nivel = item['Nível'] || '';
+        const titular = item['Titular'] || '';
+        const substituto = item['Substituto'] || '';
+        const nivelSubst = getNivelSubstituto(item);
 
         lotacoesSet.add(lotacao);
 
-        // Agrupamento: GrupoHierarquico -> Lotação -> Cargos (com contagem)
-        if (!estruturaHierarquicaCache[grupo]) {
-          estruturaHierarquicaCache[grupo] = {};
-        }
-        if (!estruturaHierarquicaCache[grupo][lotacao]) {
-          estruturaHierarquicaCache[grupo][lotacao] = {};
-        }
-        estruturaHierarquicaCache[grupo][lotacao][cargo] = (estruturaHierarquicaCache[grupo][lotacao][cargo] || 0) + 1;
+        // 1. Estrutura Total
+        if (!estruturaTotalCache[grupo]) estruturaTotalCache[grupo] = {};
+        if (!estruturaTotalCache[grupo][lotacao]) estruturaTotalCache[grupo][lotacao] = {};
+        estruturaTotalCache[grupo][lotacao][cargo] = (estruturaTotalCache[grupo][lotacao][cargo] || 0) + 1;
 
-        const titular = item['Titular'] || '';
-        const subst = item['Substituto'] || '';
+        // 2. Estrutura Elegíveis (com competência)
+        if (ehElegivel(nivel)) {
+          totalElegiveis++;
+          if (!estruturaElegiveisCache[grupo]) estruturaElegiveisCache[grupo] = {};
+          if (!estruturaElegiveisCache[grupo][lotacao]) estruturaElegiveisCache[grupo][lotacao] = [];
+          
+          estruturaElegiveisCache[grupo][lotacao].push({
+            cargo: cargo,
+            nivel: nivel,
+            titular: titular || 'Vago / Sem titular',
+            substituto: substituto && substituto.toLowerCase() !== 'não' && substituto !== '' ? substituto : 'Sem substituto',
+            nivelSubst: nivelSubst
+          });
+        }
+
         const etapas = (item['Etapas'] || '').toLowerCase();
         const revogacao = item['PORTARIA REVOGAÇÃO'] || item['Revogação'] || '';
 
         if (!titular || titular === '' || titular.toLowerCase() === 'vago' || titular.toLowerCase() === 'sem titular') {
           semTitular++;
         } else {
-          if (subst && subst !== '' && subst.toLowerCase() !== 'não' && subst.toLowerCase() !== 'sem substituto') {
+          if (substituto && substituto !== '' && substituto.toLowerCase() !== 'não' && substituto.toLowerCase() !== 'sem substituto') {
             comSubstituto++;
           } else {
             providasSemSubst++;
@@ -17803,6 +17872,7 @@
       const pctCobertura = totalCargos > 0 ? ((comSubstituto / totalCargos) * 100).toFixed(1) : 0;
 
       document.getElementById('kpi-total').textContent = totalCargos;
+      document.getElementById('kpi-elegiveis').textContent = totalElegiveis;
       document.getElementById('kpi-lotacoes').textContent = `${lotacoesSet.size} lotações`;
       document.getElementById('kpi-com-subst').textContent = comSubstituto;
       document.getElementById('kpi-pct-cobertura').textContent = `${pctCobertura}% cobertura`;
@@ -17814,70 +17884,99 @@
       renderizarGraficoCobertura(comSubstituto, providasSemSubst);
       renderizarGraficoAssinaturas(assinaturasPorLotacao);
       popularTabelaCompleta(DADOS_PLANILHA);
-      construirConteudoModal(estruturaHierarquicaCache);
+      construirModalTotal(estruturaTotalCache);
+      construirModalElegiveis(estruturaElegiveisCache);
     }
 
-    function abrirModalLotacoes() {
-      document.getElementById('modalLotacoes').style.display = 'flex';
-    }
+    function abrirModalTotal() { document.getElementById('modalTotal').style.display = 'flex'; }
+    function fecharModalTotal() { document.getElementById('modalTotal').style.display = 'none'; }
+    function abrirModalElegiveis() { document.getElementById('modalElegiveis').style.display = 'flex'; }
+    function fecharModalElegiveis() { document.getElementById('modalElegiveis').style.display = 'none'; }
 
-    function fecharModalLotacoes() {
-      document.getElementById('modalLotacoes').style.display = 'none';
-    }
-
-    function construirConteudoModal(dadosAgregados, termoFiltro = '') {
-      const container = document.getElementById('conteudoModalLotacoes');
+    function construirModalTotal(dados, filtro = '') {
+      const container = document.getElementById('conteudoModalTotal');
       let html = '';
 
-      Object.entries(dadosAgregados).forEach(([grupo, lotacoes]) => {
+      Object.entries(dados).forEach(([grupo, lotacoes]) => {
         let htmlLotacoes = '';
-        let grupoMatch = grupo.toLowerCase().includes(termoFiltro.toLowerCase());
+        let grupoMatch = grupo.toLowerCase().includes(filtro.toLowerCase());
 
         Object.entries(lotacoes).forEach(([lotacao, cargosObj]) => {
-          let lotacaoMatch = lotacao.toLowerCase().includes(termoFiltro.toLowerCase());
+          let lotacaoMatch = lotacao.toLowerCase().includes(filtro.toLowerCase());
           let htmlCargos = '';
 
           Object.entries(cargosObj).forEach(([cargo, qtd]) => {
-            let cargoMatch = cargo.toLowerCase().includes(termoFiltro.toLowerCase());
+            let cargoMatch = cargo.toLowerCase().includes(filtro.toLowerCase());
+            if (!filtro || grupoMatch || lotacaoMatch || cargoMatch) {
+              htmlCargos += `<li><span>🔹 ${cargo}</span><span class="cargo-qtd">${qtd}x</span></li>`;
+            }
+          });
 
-            if (!termoFiltro || grupoMatch || lotacaoMatch || cargoMatch) {
-              htmlCargos += `
+          if (htmlCargos) {
+            htmlLotacoes += `<div class="lotacao-subgrupo"><div class="lotacao-nome">📁 ${lotacao}</div><ul class="cargos-lista">${htmlCargos}</ul></div>`;
+          }
+        });
+
+        if (htmlLotacoes) {
+          html += `<div class="grupo-bloco"><div class="grupo-titulo">🏛️ ${grupo}</div><div>${htmlLotacoes}</div></div>`;
+        }
+      });
+      container.innerHTML = html || '<p style="text-align:center; color:#64748b;">Nenhum registo encontrado.</p>';
+    }
+
+    function construirModalElegiveis(dados, filtro = '') {
+      const container = document.getElementById('conteudoModalElegiveis');
+      let html = '';
+
+      Object.entries(dados).forEach(([grupo, lotacoes]) => {
+        let htmlLotacoes = '';
+        let grupoMatch = grupo.toLowerCase().includes(filtro.toLowerCase());
+
+        Object.entries(lotacoes).forEach(([lotacao, listaCargos]) => {
+          let lotacaoMatch = lotacao.toLowerCase().includes(filtro.toLowerCase());
+          let htmlItens = '';
+
+          listaCargos.forEach(item => {
+            let matchItem = item.cargo.toLowerCase().includes(filtro.toLowerCase()) ||
+                            item.titular.toLowerCase().includes(filtro.toLowerCase()) ||
+                            item.substituto.toLowerCase().includes(filtro.toLowerCase());
+
+            if (!filtro || grupoMatch || lotacaoMatch || matchItem) {
+              htmlItens += `
                 <li>
-                  <span>🔹 ${cargo}</span>
-                  <span class="cargo-qtd">${qtd}x</span>
+                  <div style="display: flex; flex-direction: column; gap: 3px;">
+                    <strong>🔹 ${item.cargo} <span class="badge-nivel">${item.nivel}</span></strong>
+                    <span style="font-size: 12px; color: #64748b;">Titular: ${item.titular}</span>
+                  </div>
+                  <div style="text-align: right; display: flex; flex-direction: column; gap: 3px;">
+                    <span class="badge-subst">Substituto: ${item.substituto}</span>
+                    <span style="font-size: 11px; color: #94a3b8;">Nível Subst: ${item.nivelSubst}</span>
+                  </div>
                 </li>
               `;
             }
           });
 
-          if (htmlCargos) {
-            htmlLotacoes += `
-              <div class="lotacao-subgrupo">
-                <div class="lotacao-nome">📁 ${lotacao}</div>
-                <ul class="cargos-lista">
-                  ${htmlCargos}
-                </ul>
-              </div>
-            `;
+          if (htmlItens) {
+            htmlLotacoes += `<div class="lotacao-subgrupo"><div class="lotacao-nome">📁 ${lotacao}</div><ul class="cargos-lista">${htmlItens}</ul></div>`;
           }
         });
 
         if (htmlLotacoes) {
-          html += `
-            <div class="grupo-bloco">
-              <div class="grupo-titulo">🏛️ ${grupo}</div>
-              <div>${htmlLotacoes}</div>
-            </div>
-          `;
+          html += `<div class="grupo-bloco"><div class="grupo-titulo">🏛️ ${grupo}</div><div>${htmlLotacoes}</div></div>`;
         }
       });
-
-      container.innerHTML = html || '<p style="text-align:center; color:#64748b;">Nenhum registo encontrado.</p>';
+      container.innerHTML = html || '<p style="text-align:center; color:#64748b;">Nenhum registo elegível encontrado.</p>';
     }
 
-    function filtrarModalLotacoes() {
-      const termo = document.getElementById('filtroModal').value;
-      construirConteudoModal(estruturaHierarquicaCache, termo);
+    function filtrarModalTotal() {
+      const termo = document.getElementById('filtroModalTotal').value;
+      construirModalTotal(estruturaTotalCache, termo);
+    }
+
+    function filtrarModalElegiveis() {
+      const termo = document.getElementById('filtroModalElegiveis').value;
+      construirModalElegiveis(estruturaElegiveisCache, termo);
     }
 
     function renderizarGraficoCobertura(com, sem) {
