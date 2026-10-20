@@ -2,25 +2,229 @@
 <html lang="pt-BR">
 <head>
   <meta charset="UTF-8">
-  <title>Dashboard de Substituições - Detran/SP</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Dashboard — Estrutura de Cargos | DETRAN-SP</title>
+  <!-- Chart.js para os gráficos -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
   <style>
-    body { font-family: Arial, sans-serif; margin: 20px; background: #f4f6f9; color: #333; }
-    h2 { color: #004a8f; }
-    .card { background: #fff; padding: 15px; margin-bottom: 20px; border-radius: 6px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); }
-    table { width: 100%; border-collapse: collapse; background: #fff; margin-top: 10px; }
-    th, td { padding: 10px; border: 1px solid #ddd; text-align: left; font-size: 14px; }
-    th { background: #004a8f; color: #fff; }
+    :root {
+      --primary: #0f172a;
+      --secondary: #1e3a8a;
+      --accent-green: #16a34a;
+      --accent-red: #dc2626;
+      --accent-orange: #d97706;
+      --bg-color: #f8fafc;
+      --card-bg: #ffffff;
+      --text-main: #334155;
+      --border-color: #e2e8f0;
+    }
+
+    body {
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+      background-color: var(--bg-color);
+      color: var(--text-main);
+      margin: 0;
+      padding: 20px;
+    }
+
+    header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      background: var(--card-bg);
+      padding: 15px 25px;
+      border-radius: 8px;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+      margin-bottom: 20px;
+    }
+
+    header h1 {
+      margin: 0;
+      font-size: 20px;
+      color: var(--primary);
+    }
+
+    header p {
+      margin: 5px 0 0 0;
+      font-size: 13px;
+      color: #64748b;
+    }
+
+    .btn-atualizar {
+      background: #fff;
+      border: 1px solid var(--border-color);
+      padding: 8px 16px;
+      border-radius: 6px;
+      cursor: pointer;
+      font-weight: 600;
+      color: var(--text-main);
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      transition: background 0.2s;
+    }
+
+    .btn-atualizar:hover {
+      background: #f1f5f9;
+    }
+
+    /* Grid de KPIs (Cards) */
+    .kpi-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(130px, 1fr));
+      gap: 15px;
+      margin-bottom: 25px;
+    }
+
+    .kpi-card {
+      background: var(--card-bg);
+      padding: 15px;
+      border-radius: 8px;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+      border-left: 4px solid var(--secondary);
+    }
+
+    .kpi-card.green { border-left-color: var(--accent-green); }
+    .kpi-card.red { border-left-color: var(--accent-red); }
+    .kpi-card.orange { border-left-color: var(--accent-orange); }
+
+    .kpi-title {
+      font-size: 11px;
+      font-weight: 700;
+      color: #64748b;
+      text-transform: uppercase;
+      margin-bottom: 8px;
+    }
+
+    .kpi-value {
+      font-size: 22px;
+      font-weight: 700;
+      color: var(--primary);
+    }
+
+    .kpi-sub {
+      font-size: 11px;
+      color: #94a3b8;
+      margin-top: 5px;
+    }
+
+    /* Grid de Gráficos */
+    .charts-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+      gap: 20px;
+      margin-bottom: 25px;
+    }
+
+    .chart-card {
+      background: var(--card-bg);
+      padding: 20px;
+      border-radius: 8px;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+    }
+
+    .chart-card h3 {
+      margin-top: 0;
+      font-size: 14px;
+      color: var(--primary);
+      margin-bottom: 15px;
+    }
+
+    .chart-container {
+      position: relative;
+      height: 250px;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+    }
+
+    /* Tabela de Dados Geral */
+    .table-card {
+      background: var(--card-bg);
+      padding: 20px;
+      border-radius: 8px;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+      overflow-x: auto;
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      margin-top: 10px;
+    }
+
+    th, td {
+      padding: 10px 12px;
+      text-align: left;
+      border-bottom: 1px solid var(--border-color);
+      font-size: 13px;
+    }
+
+    th {
+      background: #f1f5f9;
+      color: var(--primary);
+      font-weight: 600;
+    }
   </style>
 </head>
 <body>
 
-  <h2>Painel de Controle - Substituições</h2>
-  <div class="card">
-    <p id="status">A carregar dados da planilha...</p>
+  <header>
+    <div>
+      <h1>Dashboard — Estrutura de Cargos | DETRAN-SP</h1>
+      <p>Indicadores de cobertura de substitutos, portarias e distribuição por lotação.</p>
+    </div>
+    <button class="btn-atualizar" onclick="window.location.reload()">🔄 Atualizar</button>
+  </header>
+
+  <!-- BLOCO DE CARDS DE INDICADORES (KPIs) -->
+  <div class="kpi-grid">
+    <div class="kpi-card">
+      <div class="kpi-title">Total de Cargos</div>
+      <div class="kpi-value" id="kpi-total">0</div>
+      <div class="kpi-sub" id="kpi-lotacoes">0 lotações</div>
+    </div>
+    <div class="kpi-card green">
+      <div class="kpi-title">Com Substituto</div>
+      <div class="kpi-value" id="kpi-com-subst" style="color: var(--accent-green);">0</div>
+      <div class="kpi-sub" id="kpi-pct-cobertura">0% de cobertura</div>
+    </div>
+    <div class="kpi-card red">
+      <div class="kpi-title">Sem Substituto</div>
+      <div class="kpi-value" id="kpi-sem-subst" style="color: var(--accent-red);">0</div>
+      <div class="kpi-sub">Pendentes de indicação</div>
+    </div>
+    <div class="kpi-card">
+      <div class="kpi-title">Subst. + Portaria</div>
+      <div class="kpi-value" id="kpi-com-portaria">0</div>
+      <div class="kpi-sub">Com portaria publicada</div>
+    </div>
+    <div class="kpi-card orange">
+      <div class="kpi-title">Subst. s/ Portaria</div>
+      <div class="kpi-value" id="kpi-sem-portaria">0</div>
+      <div class="kpi-sub">Aguardando publicação</div>
+    </div>
   </div>
 
-  <div class="card">
-    <h3>Registros</h3>
+  <!-- BLOCO DE GRÁFICOS -->
+  <div class="charts-grid">
+    <div class="chart-card">
+      <h3>Cobertura de Substitutos</h3>
+      <div class="chart-container">
+        <canvas id="graficoCobertura"></canvas>
+      </div>
+    </div>
+    <div class="chart-card">
+      <h3>Cargos por Lotação (Top 10)</h3>
+      <div class="chart-container">
+        <canvas id="graficoLotacao"></canvas>
+      </div>
+    </div>
+  </div>
+
+  <!-- TABELA DE DADOS DETALHADOS -->
+  <div class="table-card">
+    <h3>Detalhamento dos Registros da Planilha</h3>
     <table id="tabela-dados">
       <thead><tr id="cabecalho"></tr></thead>
       <tbody id="corpo-tabela"></tbody>
@@ -28,7 +232,7 @@
   </div>
 
   <script>
-    // Marcador obrigatório onde o Node.js vai injetar os dados automaticamente:
+    // Marcador onde o Node.js injeta os dados reais do OneDrive automaticamente:
     const DADOS_PLANILHA = /*__INICIO_DADOS__*/ [
   {
     "Lotação": "Presidência",
@@ -14720,33 +14924,155 @@
   }
 ] /*__FIM_DADOS__*/;
 
-    function inicializarDashboard() {
-      const statusEl = document.getElementById('status');
-      
+    let chartCoberturaInstance = null;
+    let chartLotacaoInstance = null;
+
+    function processarDashboard() {
       if (!DADOS_PLANILHA || DADOS_PLANILHA.length === 0) {
-        statusEl.textContent = "Nenhum dado encontrado ou planilha vazia.";
+        console.warn("Nenhum dado encontrado na variável DADOS_PLANILHA.");
         return;
       }
 
-      statusEl.textContent = `✅ Total de registros carregados: ${DADOS_PLANILHA.length}`;
+      const totalCargos = DADOS_PLANILHA.length;
       
-      const colunas = Object.keys(DADOS_PLANILHA[0]);
+      // Mapeia colunas comuns (ajuste flexível conforme os nomes das colunas na sua planilha)
+      // Exemplo comum: "Lotação", "Cargo", "Substituto", "Portaria"
+      let comSubstituto = 0;
+      let semSubstituto = 0;
+      let comPortaria = 0;
+      const lotacoesSet = new Set();
+      const contagemLotacoes = {};
+
+      DADOS_PLANILHA.forEach(item => {
+        // Tenta encontrar chaves correspondentes independente de maiúsculas/minúsculas
+        const keys = Object.keys(item);
+        const chaveLotacao = keys.find(k => k.toLowerCase().includes('lotação') || k.toLowerCase().includes('lotacao')) || keys[0];
+        const chaveCargo = keys.find(k => k.toLowerCase().includes('cargo')) || keys[1];
+        const chaveSubst = keys.find(k => k.toLowerCase().includes('substituto') || k.toLowerCase().includes('subst')) || '';
+        const chavePortaria = keys.find(k => k.toLowerCase().includes('portaria')) || '';
+
+        const lotacao = item[chaveLotacao] || 'Não informada';
+        lotacoesSet.add(lotacao);
+
+        // Conta por lotação para o gráfico
+        contagemLotacoes[lotacao] = (contagemLotacoes[lotacao] || 0) + 1;
+
+        // Lógica de Substituto (considera preenchido se houver nome ou texto)
+        const substValor = chaveSubst ? String(item[chaveSubst]).trim() : '';
+        if (substValor && substValor !== '' && substValor.toLowerCase() !== 'não' && substValor.toLowerCase() !== 'sem substituto') {
+          comSubstituto++;
+        } else {
+          semSubstituto++;
+        }
+
+        // Lógica de Portaria
+        const portValor = chavePortaria ? String(item[chavePortaria]).trim() : '';
+        if (portValor && portValor !== '' && portValor.toLowerCase() !== 'não') {
+          comPortaria++;
+        }
+      });
+
+      const pctCobertura = totalCargos > 0 ? ((comSubstituto / totalCargos) * 100).toFixed(1) : 0;
+      const semPortaria = comSubstituto - comPortaria;
+
+      // Atualiza os Cards (KPIs)
+      document.getElementById('kpi-total').textContent = totalCargos;
+      document.getElementById('kpi-lotacoes').textContent = `${lotacoesSet.size} lotações`;
+      document.getElementById('kpi-com-subst').textContent = comSubstituto;
+      document.getElementById('kpi-pct-cobertura').textContent = `${pctCobertura}% de cobertura`;
+      document.getElementById('kpi-sem-subst').textContent = semSubstituto;
+      document.getElementById('kpi-com-portaria').textContent = comPortaria;
+      document.getElementById('kpi-sem-portaria').textContent = semPortaria >= 0 ? semPortaria : 0;
+
+      // Renderiza Gráficos
+      renderizarGraficoCobertura(comSubstituto, semSubstituto);
+      renderizarGraficoLotacao(contagemLotacoes);
+
+      // Renderiza Tabela
+      renderizarTabela(DADOS_PLANILHA);
+    }
+
+    function renderizarGraficoCobertura(com, sem) {
+      const ctx = document.getElementById('graficoCobertura').getContext('2d');
+      if (chartCoberturaInstance) chartCoberturaInstance.destroy();
+
+      chartCoberturaInstance = new Chart(ctx, {
+        type: 'doughnut',
+        data: {
+          labels: ['Com substituto', 'Sem substituto'],
+          datasets: [{
+            data: [com, sem],
+            backgroundColor: ['#16a34a', '#dc2626'],
+            borderWidth: 0
+          }]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          plugins: {
+            legend: { position: 'bottom' }
+          },
+          cutout: '70%'
+        }
+      });
+    }
+
+    function renderizarGraficoLotacao(contagemObj) {
+      const ctx = document.getElementById('graficoLotacao').getContext('2d');
+      if (chartLotacaoInstance) chartLotacaoInstance.destroy();
+
+      // Pega o Top 10 lotações com mais cargos
+      const ordenado = Object.entries(contagemObj)
+        .sort((a, b) => b[1] - a[1])
+        .slice(0, 10);
+
+      const labels = ordenado.map(item => item[0]);
+      const valores = ordenado.map(item => item[1]);
+
+      chartLotacaoInstance = new Chart(ctx, {
+        type: 'bar',
+        data: {
+          labels: labels,
+          datasets: [{
+            label: 'Qtd de Cargos',
+            data: valores,
+            backgroundColor: '#1e3a8a',
+            borderRadius: 4
+          }]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          indexAxis: 'y', // Barras horizontais estilo Top 15
+          plugins: {
+            legend: { display: false }
+          },
+          scales: {
+            x: { grid: { display: false } },
+            y: { grid: { display: false } }
+          }
+        }
+      });
+    }
+
+    function renderizarTabela(dados) {
+      if (!dados.length) return;
+      const colunas = Object.keys(dados[0]);
       const thead = document.getElementById('cabecalho');
       const tbody = document.getElementById('corpo-tabela');
 
-      // Cria o cabeçalho da tabela dinamicamente
       thead.innerHTML = colunas.map(col => `<th>${col}</th>`).join('');
-
-      // Preenche as linhas da tabela com os dados da planilha
-      tbody.innerHTML = DADOS_PLANILHA.map(linha => `
+      
+      // Exibe até as primeiras 50 linhas na tabela para manter o painel rápido
+      tbody.innerHTML = dados.slice(0, 50).map(linha => `
         <tr>
           ${colunas.map(col => `<td>${linha[col] || ''}</td>`).join('')}
         </tr>
       `).join('');
     }
 
-    // Executa ao abrir a página
-    inicializarDashboard();
+    // Inicia o painel ao carregar a página
+    processarDashboard();
   </script>
 </body>
 </html>
