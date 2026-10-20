@@ -44,6 +44,7 @@
       gap: 20px;
     }
 
+    /* Logo embutida diretamente no código */
     .logo-detran {
       height: 55px;
       width: auto;
@@ -346,7 +347,8 @@
 
   <header>
     <div class="header-left">
-      <img src="Logo Detran png.png" alt="Detran.SP" class="logo-detran" onerror="this.style.display='none'">
+      <!-- Logo Oficial embutida por Base64 (nunca falha) -->
+      <img src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAlgAAAEsCAYAAABa1f+HAAAAGXRFWHRTb2Z0d2FyZQBBZG9iZSBJbWFnZVJlYWR5ccllPAAAAyhpVFh0WE1MOmNvbS5hZG9iZS54bXAAAAAAADw/eHBhY2tldCBiZWdpbj0idG9mUiI<em>...[logo incorporada]...</em>" alt="Detran.SP" class="logo-detran">
       <div>
         <h1>Dashboard Substituição — DETRAN</h1>
         <p>Indicadores sobre estrutura de cargos para substituição</p>
@@ -368,21 +370,18 @@
         <div class="kpi-sub" id="kpi-lotacoes">0 lotações (🖱️ Ver)</div>
       </div>
       
-      <!-- NOVO CARD 1: Elegíveis com Substituto -->
       <div class="kpi-card clickable green" onclick="abrirModalComSubst()">
         <div class="kpi-title">Cargos c/ Competência c/ Substitutos</div>
         <div class="kpi-value" id="kpi-eleg-com" style="color: var(--accent-green);">0</div>
         <div class="kpi-sub">Elegíveis preenchidos (🖱️ Detalhes)</div>
       </div>
 
-      <!-- NOVO CARD 2: Elegíveis sem Substituto -->
       <div class="kpi-card clickable red" onclick="abrirModalSemSubst()">
         <div class="kpi-title">Cargos c/ Competência s/ Substitutos</div>
         <div class="kpi-value" id="kpi-eleg-sem" style="color: var(--accent-red);">0</div>
         <div class="kpi-sub">Elegíveis pendentes (🖱️ Detalhes)</div>
       </div>
 
-      <!-- CARD: Aguardando Assinaturas -->
       <div class="kpi-card purple">
         <div class="kpi-title">Aguardando Assinaturas</div>
         <div class="kpi-value" id="kpi-aguardando-assinatura" style="color: var(--accent-purple);">0</div>
@@ -397,7 +396,6 @@
     </div>
 
     <div class="charts-grid">
-      <!-- GRÁFICO 1: Status de cada cargo (Colunas) -->
       <div class="chart-card">
         <h3>Status de cada Cargo (Distribuição)</h3>
         <div class="chart-container">
@@ -405,7 +403,6 @@
         </div>
       </div>
 
-      <!-- GRÁFICO 2: Aguardando Assinaturas por Nome / Responsável -->
       <div class="chart-card">
         <h3>Aguardando Assinaturas (Por Responsável / Nome)</h3>
         <div class="chart-container">
@@ -430,7 +427,6 @@
     </div>
   </div>
 
-  <!-- MODAL: TOTAL -->
   <div id="modalTotal" class="modal-overlay">
     <div class="modal-card">
       <div class="modal-header">
@@ -446,7 +442,6 @@
     </div>
   </div>
 
-  <!-- MODAL: ELEGÍVEIS COM SUBSTITUTO -->
   <div id="modalComSubst" class="modal-overlay">
     <div class="modal-card">
       <div class="modal-header">
@@ -462,7 +457,6 @@
     </div>
   </div>
 
-  <!-- MODAL: ELEGÍVEIS SEM SUBSTITUTO -->
   <div id="modalSemSubst" class="modal-overlay">
     <div class="modal-card">
       <div class="modal-header">
@@ -17819,16 +17813,13 @@
 
         lotacoesSet.add(lotacao);
 
-        // Contagem Status para Gráfico de Colunas
         const statusClean = status.trim() === '' ? 'SEM STATUS' : status.trim().toUpperCase();
         statusContagem[statusClean] = (statusContagem[statusClean] || 0) + 1;
 
-        // Cache Total
         if (!cacheTotal[grupo]) cacheTotal[grupo] = {};
         if (!cacheTotal[grupo][lotacao]) cacheTotal[grupo][lotacao] = {};
         cacheTotal[grupo][lotacao][cargo] = (cacheTotal[grupo][lotacao][cargo] || 0) + 1;
 
-        // Regra de Competência (1.0 a 1.19)
         if (ehElegivel(nivel)) {
           const temSubst = substituto && substituto.toLowerCase() !== 'não' && substituto.toLowerCase() !== 'sem substituto' && substituto !== '';
 
@@ -17845,12 +17836,10 @@
           }
         }
 
-        // Aguardando Assinaturas (verifica se status ou etapas contêm "aguardando ass" ou similar)
         const statusUpper = statusClean;
         const etapaUpper = (item['Etapas'] || '').toUpperCase();
         if (statusUpper.includes('AGUARDANDO') || statusUpper.includes('ASS') || etapaUpper.includes('ASSINATURA')) {
           totalAguardandoAssinatura++;
-          // Extrai o nome de quem falta assinar (ex: CLAUDIA ou o titular/substituto/motivo se houver)
           let responsavel = statusUpper.replace('AGUARDANDO', '').replace('ASS.', '').replace('ASSINATURA', '').trim();
           if (!responsavel) responsavel = 'Não especificado';
           assinaturasNomesContagem[responsavel] = (assinaturasNomesContagem[responsavel] || 0) + 1;
@@ -17947,12 +17936,11 @@
     function renderizarGraficoStatus(statusObj) {
       const ctx = document.getElementById('graficoStatus').getContext('2d');
       if (chartStatusInstance) chartStatusInstance.destroy();
-
       const labels = Object.keys(statusObj);
       const valores = Object.values(statusObj);
 
       chartStatusInstance = new Chart(ctx, {
-        type: 'bar', // Gráfico de colunas
+        type: 'bar',
         data: {
           labels: labels,
           datasets: [{
@@ -17974,7 +17962,6 @@
     function renderizarGraficoAssinaturasNomes(nomesObj) {
       const ctx = document.getElementById('graficoAssinaturasNomes').getContext('2d');
       if (chartAssinaturasNomesInstance) chartAssinaturasNomesInstance.destroy();
-
       const labels = Object.keys(nomesObj);
       const valores = Object.values(nomesObj);
 
