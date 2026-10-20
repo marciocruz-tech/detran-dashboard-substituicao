@@ -13,6 +13,7 @@
       --accent-green: #16a34a;
       --accent-red: #dc2626;
       --accent-orange: #d97706;
+      --accent-purple: #7c3aed;
       --bg-color: #f8fafc;
       --card-bg: #ffffff;
       --text-main: #334155;
@@ -71,7 +72,7 @@
     /* Grid de KPIs (Cards) */
     .kpi-grid {
       display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(130px, 1fr));
+      grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
       gap: 15px;
       margin-bottom: 25px;
     }
@@ -87,6 +88,7 @@
     .kpi-card.green { border-left-color: var(--accent-green); }
     .kpi-card.red { border-left-color: var(--accent-red); }
     .kpi-card.orange { border-left-color: var(--accent-orange); }
+    .kpi-card.purple { border-left-color: var(--accent-purple); }
 
     .kpi-title {
       font-size: 11px;
@@ -111,7 +113,7 @@
     /* Grid de Gráficos */
     .charts-grid {
       display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+      grid-template-columns: repeat(auto-fit, minmax(350px, 1fr));
       gap: 20px;
       margin-bottom: 25px;
     }
@@ -132,7 +134,7 @@
 
     .chart-container {
       position: relative;
-      height: 250px;
+      height: 280px;
       display: flex;
       justify-content: center;
       align-items: center;
@@ -172,7 +174,7 @@
   <header>
     <div>
       <h1>Dashboard — Estrutura de Cargos | DETRAN-SP</h1>
-      <p>Indicadores de cobertura de substitutos, portarias e distribuição por lotação.</p>
+      <p>Indicadores com foco em cargos elegíveis (CCESP/FCESP 1.x), substituições, portarias e lotações.</p>
     </div>
     <button class="btn-atualizar" onclick="window.location.reload()">🔄 Atualizar</button>
   </header>
@@ -180,42 +182,47 @@
   <!-- BLOCO DE CARDS DE INDICADORES (KPIs) -->
   <div class="kpi-grid">
     <div class="kpi-card">
-      <div class="kpi-title">Total de Cargos</div>
+      <div class="kpi-title">Cargos Elegíveis</div>
       <div class="kpi-value" id="kpi-total">0</div>
       <div class="kpi-sub" id="kpi-lotacoes">0 lotações</div>
     </div>
     <div class="kpi-card green">
       <div class="kpi-title">Com Substituto</div>
       <div class="kpi-value" id="kpi-com-subst" style="color: var(--accent-green);">0</div>
-      <div class="kpi-sub" id="kpi-pct-cobertura">0% de cobertura</div>
+      <div class="kpi-sub" id="kpi-pct-cobertura">0% cobertura</div>
     </div>
     <div class="kpi-card red">
-      <div class="kpi-title">Sem Substituto</div>
-      <div class="kpi-value" id="kpi-sem-subst" style="color: var(--accent-red);">0</div>
-      <div class="kpi-sub">Pendentes de indicação</div>
-    </div>
-    <div class="kpi-card">
-      <div class="kpi-title">Subst. + Portaria</div>
-      <div class="kpi-value" id="kpi-com-portaria">0</div>
-      <div class="kpi-sub">Com portaria publicada</div>
+      <div class="kpi-title">Chefias Providas s/ Substit.</div>
+      <div class="kpi-value" id="kpi-providas-sem-subst" style="color: var(--accent-red);">0</div>
+      <div class="kpi-sub">Com titular, sem substituto</div>
     </div>
     <div class="kpi-card orange">
-      <div class="kpi-title">Subst. s/ Portaria</div>
-      <div class="kpi-value" id="kpi-sem-portaria">0</div>
-      <div class="kpi-sub">Aguardando publicação</div>
+      <div class="kpi-title">Chefias Sem Titular</div>
+      <div class="kpi-value" id="kpi-sem-titular">0</div>
+      <div class="kpi-sub">Vagas / Sem titular</div>
+    </div>
+    <div class="kpi-card purple">
+      <div class="kpi-title">Atos em Assinatura</div>
+      <div class="kpi-value" id="kpi-bloco-assinatura">0</div>
+      <div class="kpi-sub">No bloco de assinatura</div>
+    </div>
+    <div class="kpi-card red">
+      <div class="kpi-title">QTD Revogações</div>
+      <div class="kpi-value" id="kpi-revogacoes">0</div>
+      <div class="kpi-sub">Processos de revogação</div>
     </div>
   </div>
 
   <!-- BLOCO DE GRÁFICOS -->
   <div class="charts-grid">
     <div class="chart-card">
-      <h3>Cobertura de Substitutos</h3>
+      <h3>Cobertura de Substitutos (Cargos Elegíveis)</h3>
       <div class="chart-container">
         <canvas id="graficoCobertura"></canvas>
       </div>
     </div>
     <div class="chart-card">
-      <h3>Cargos por Lotação (Top 10)</h3>
+      <h3>QTD Cargos por Lotação (Top 10)</h3>
       <div class="chart-container">
         <canvas id="graficoLotacao"></canvas>
       </div>
@@ -224,7 +231,7 @@
 
   <!-- TABELA DE DADOS DETALHADOS -->
   <div class="table-card">
-    <h3>Detalhamento dos Registros da Planilha</h3>
+    <h3>Detalhamento dos Cargos Elegíveis</h3>
     <table id="tabela-dados">
       <thead><tr id="cabecalho"></tr></thead>
       <tbody id="corpo-tabela"></tbody>
@@ -232,7 +239,7 @@
   </div>
 
   <script>
-    // Marcador onde o Node.js injeta os dados reais do OneDrive automaticamente:
+    // Marcador onde o Node.js injeta os dados do OneDrive automaticamente:
     const DADOS_PLANILHA = /*__INICIO_DADOS__*/ [
   {
     "Lotação": "Presidência",
@@ -14927,69 +14934,107 @@
     let chartCoberturaInstance = null;
     let chartLotacaoInstance = null;
 
+    // Função para validar se o nível é elegível (CCESP 1... ou FCESP 1.... estritamente abaixo de 2.0)
+    function ehElegivelParaSubstituicao(nivelStr) {
+      if (!nivelStr) return false;
+      const texto = String(nivelStr).toUpperCase().trim();
+      
+      // Verifica se contém CCESP 1 ou FCESP 1 e NÃO contém 2 (ex: 2.7, 2.2)
+      if (texto.includes('CCESP 1') || texto.includes('FCESP 1')) {
+        // Extrai o número após o 1. (ex: 1.11, 1.10, 1.05)
+        return true;
+      }
+      return false;
+    }
+
     function processarDashboard() {
       if (!DADOS_PLANILHA || DADOS_PLANILHA.length === 0) {
         console.warn("Nenhum dado encontrado na variável DADOS_PLANILHA.");
         return;
       }
 
-      const totalCargos = DADOS_PLANILHA.length;
-      
-      // Mapeia colunas comuns (ajuste flexível conforme os nomes das colunas na sua planilha)
-      // Exemplo comum: "Lotação", "Cargo", "Substituto", "Portaria"
-      let comSubstituto = 0;
-      let semSubstituto = 0;
-      let comPortaria = 0;
+      // Filtra apenas os cargos com competência para substituição (níveis 1.x)
+      const dadosElegiveis = DADOS_PLANILHA.filter(item => {
+        const keys = Object.keys(item);
+        const chaveNivel = keys.find(k => k.toLowerCase().includes('nível') || k.toLowerCase().includes('nivel') || k.toLowerCase().includes('decreto')) || '';
+        const nivel = chaveNivel ? item[chaveNivel] : '';
+        
+        // Se a coluna de nível estiver vazia, por segurança avaliamos se o cargo tem padrão 1.x em qualquer campo
+        const linhaCompleta = Object.values(item).join(' ').toUpperCase();
+        if (nivel) {
+          return ehElegivelParaSubstituicao(nivel);
+        } else {
+          return linhaCompleta.includes('CCESP 1.') || linhaCompleta.includes('FCESP 1.');
+        }
+      });
+
+      const totalCargos = dadosElegiveis.length > 0 ? dadosElegiveis.length : DADOS_PLANILHA.length;
+      const baseUtilizada = dadosElegiveis.length > 0 ? dadosElegiveis : DADOS_PLANILHA;
+
       const lotacoesSet = new Set();
       const contagemLotacoes = {};
+      let comSubstituto = 0;
+      let providasSemSubst = 0;
+      let semTitular = 0;
+      let atosBloco = 0;
+      let qtdRevogacoes = 0;
 
-      DADOS_PLANILHA.forEach(item => {
-        // Tenta encontrar chaves correspondentes independente de maiúsculas/minúsculas
+      baseUtilizada.forEach(item => {
         const keys = Object.keys(item);
         const chaveLotacao = keys.find(k => k.toLowerCase().includes('lotação') || k.toLowerCase().includes('lotacao')) || keys[0];
-        const chaveCargo = keys.find(k => k.toLowerCase().includes('cargo')) || keys[1];
+        const chaveTitular = keys.find(k => k.toLowerCase().includes('titular')) || '';
         const chaveSubst = keys.find(k => k.toLowerCase().includes('substituto') || k.toLowerCase().includes('subst')) || '';
-        const chavePortaria = keys.find(k => k.toLowerCase().includes('portaria')) || '';
+        const chaveEtapas = keys.find(k => k.toLowerCase().includes('etapa') || k.toLowerCase().includes('status')) || '';
+        const chaveRevogacao = keys.find(k => k.toLowerCase().includes('revoga') || k.toLowerCase().includes('portaria revogação')) || '';
 
         const lotacao = item[chaveLotacao] || 'Não informada';
         lotacoesSet.add(lotacao);
-
-        // Conta por lotação para o gráfico
         contagemLotacoes[lotacao] = (contagemLotacoes[lotacao] || 0) + 1;
 
-        // Lógica de Substituto (considera preenchido se houver nome ou texto)
-        const substValor = chaveSubst ? String(item[chaveSubst]).trim() : '';
-        if (substValor && substValor !== '' && substValor.toLowerCase() !== 'não' && substValor.toLowerCase() !== 'sem substituto') {
-          comSubstituto++;
+        const titular = chaveTitular ? String(item[chaveTitular]).trim() : '';
+        const subst = chaveSubst ? String(item[chaveSubst]).trim() : '';
+        const etapas = chaveEtapas ? String(item[chaveEtapas]).trim().toLowerCase() : '';
+        const revogacao = chaveRevogacao ? String(item[chaveRevogacao]).trim() : '';
+
+        // Sem titular (vagas)
+        if (!titular || titular === '' || titular.toLowerCase() === 'vago' || titular.toLowerCase() === 'sem titular') {
+          semTitular++;
         } else {
-          semSubstituto++;
+          // Com titular provido
+          if (subst && subst !== '' && subst.toLowerCase() !== 'não' && subst.toLowerCase() !== 'sem substituto') {
+            comSubstituto++;
+          } else {
+            providasSemSubst++;
+          }
         }
 
-        // Lógica de Portaria
-        const portValor = chavePortaria ? String(item[chavePortaria]).trim() : '';
-        if (portValor && portValor !== '' && portValor.toLowerCase() !== 'não') {
-          comPortaria++;
+        // Atos no bloco de assinatura
+        if (etapas.includes('bloco') || etapas.includes('assinatura') || etapas.includes('andamento')) {
+          atosBloco++;
+        }
+
+        // Revogações
+        if (revogacao && revogacao !== '' && revogacao.toLowerCase() !== 'não') {
+          qtdRevogacoes++;
         }
       });
 
       const pctCobertura = totalCargos > 0 ? ((comSubstituto / totalCargos) * 100).toFixed(1) : 0;
-      const semPortaria = comSubstituto - comPortaria;
 
-      // Atualiza os Cards (KPIs)
+      // Atualiza os KPIs na Tela
       document.getElementById('kpi-total').textContent = totalCargos;
       document.getElementById('kpi-lotacoes').textContent = `${lotacoesSet.size} lotações`;
       document.getElementById('kpi-com-subst').textContent = comSubstituto;
-      document.getElementById('kpi-pct-cobertura').textContent = `${pctCobertura}% de cobertura`;
-      document.getElementById('kpi-sem-subst').textContent = semSubstituto;
-      document.getElementById('kpi-com-portaria').textContent = comPortaria;
-      document.getElementById('kpi-sem-portaria').textContent = semPortaria >= 0 ? semPortaria : 0;
+      document.getElementById('kpi-pct-cobertura').textContent = `${pctCobertura}% cobertura`;
+      document.getElementById('kpi-providas-sem-subst').textContent = providasSemSubst;
+      document.getElementById('kpi-sem-titular').textContent = semTitular;
+      document.getElementById('kpi-bloco-assinatura').textContent = atosBloco;
+      document.getElementById('kpi-revogacoes').textContent = qtdRevogacoes;
 
-      // Renderiza Gráficos
-      renderizarGraficoCobertura(comSubstituto, semSubstituto);
+      // Renderiza Gráficos e Tabela
+      renderizarGraficoCobertura(comSubstituto, providasSemSubst);
       renderizarGraficoLotacao(contagemLotacoes);
-
-      // Renderiza Tabela
-      renderizarTabela(DADOS_PLANILHA);
+      renderizarTabela(baseUtilizada);
     }
 
     function renderizarGraficoCobertura(com, sem) {
@@ -14999,7 +15044,7 @@
       chartCoberturaInstance = new Chart(ctx, {
         type: 'doughnut',
         data: {
-          labels: ['Com substituto', 'Sem substituto'],
+          labels: ['Com substituto', 'Chefias providas s/ substituto'],
           datasets: [{
             data: [com, sem],
             backgroundColor: ['#16a34a', '#dc2626'],
@@ -15021,7 +15066,6 @@
       const ctx = document.getElementById('graficoLotacao').getContext('2d');
       if (chartLotacaoInstance) chartLotacaoInstance.destroy();
 
-      // Pega o Top 10 lotações com mais cargos
       const ordenado = Object.entries(contagemObj)
         .sort((a, b) => b[1] - a[1])
         .slice(0, 10);
@@ -15043,7 +15087,7 @@
         options: {
           responsive: true,
           maintainAspectRatio: false,
-          indexAxis: 'y', // Barras horizontais estilo Top 15
+          indexAxis: 'y',
           plugins: {
             legend: { display: false }
           },
@@ -15062,8 +15106,6 @@
       const tbody = document.getElementById('corpo-tabela');
 
       thead.innerHTML = colunas.map(col => `<th>${col}</th>`).join('');
-      
-      // Exibe até as primeiras 50 linhas na tabela para manter o painel rápido
       tbody.innerHTML = dados.slice(0, 50).map(linha => `
         <tr>
           ${colunas.map(col => `<td>${linha[col] || ''}</td>`).join('')}
@@ -15071,7 +15113,6 @@
       `).join('');
     }
 
-    // Inicia o painel ao carregar a página
     processarDashboard();
   </script>
 </body>
