@@ -33,7 +33,7 @@
       justify-content: space-between;
       align-items: center;
       background: var(--card-bg);
-      padding: 15px 25px;
+      padding: 25px 35px;
       border-radius: 8px;
       box-shadow: 0 1px 3px rgba(0,0,0,0.1);
       margin-bottom: 20px;
@@ -42,23 +42,24 @@
     .header-left {
       display: flex;
       align-items: center;
-      gap: 15px;
+      gap: 20px;
     }
 
     .logo-detran {
-      height: 40px;
+      height: 65px;
       width: auto;
+      object-fit: contain;
     }
 
     header h1 {
       margin: 0;
-      font-size: 18px;
+      font-size: 22px;
       color: var(--primary);
     }
 
     header p {
-      margin: 2px 0 0 0;
-      font-size: 12px;
+      margin: 4px 0 0 0;
+      font-size: 13px;
       color: #64748b;
     }
 
@@ -126,6 +127,17 @@
       border-left: 4px solid var(--secondary);
     }
 
+    .kpi-card.clickable {
+      cursor: pointer;
+      transition: transform 0.2s, box-shadow 0.2s;
+    }
+
+    .kpi-card.clickable:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+      background-color: #f8fafc;
+    }
+
     .kpi-card.green { border-left-color: var(--accent-green); }
     .kpi-card.red { border-left-color: var(--accent-red); }
     .kpi-card.orange { border-left-color: var(--accent-orange); }
@@ -181,6 +193,84 @@
       align-items: center;
     }
 
+    /* Modal / Janela Flutuante para Lotações e Cargos */
+    .modal-overlay {
+      display: none;
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: rgba(0, 0, 0, 0.5);
+      z-index: 1000;
+      justify-content: center;
+      align-items: center;
+    }
+
+    .modal-card {
+      background: #fff;
+      width: 90%;
+      max-width: 800px;
+      max-height: 85vh;
+      border-radius: 8px;
+      display: flex;
+      flex-direction: column;
+      box-shadow: 0 10px 25px rgba(0,0,0,0.2);
+    }
+
+    .modal-header {
+      padding: 20px;
+      border-bottom: 1px solid var(--border-color);
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    .modal-header h3 {
+      margin: 0;
+      color: var(--primary);
+    }
+
+    .close-btn {
+      background: none;
+      border: none;
+      font-size: 20px;
+      cursor: pointer;
+      color: #64748b;
+    }
+
+    .modal-body {
+      padding: 20px;
+      overflow-y: auto;
+    }
+
+    .lotacao-grupo {
+      margin-bottom: 15px;
+      border: 1px solid var(--border-color);
+      border-radius: 6px;
+      overflow: hidden;
+    }
+
+    .lotacao-titulo {
+      background: #f1f5f9;
+      padding: 10px 15px;
+      font-weight: 600;
+      color: var(--secondary);
+      font-size: 14px;
+    }
+
+    .cargos-lista {
+      padding: 10px 15px;
+      margin: 0;
+      list-style: none;
+    }
+
+    .cargos-lista li {
+      padding: 4px 0;
+      font-size: 13px;
+      border-bottom: 1px dashed #f1f5f9;
+    }
+
     /* Tabela da Estrutura Completa */
     .table-card {
       background: var(--card-bg);
@@ -233,13 +323,12 @@
 
   <header>
     <div class="header-left">
-      <!-- Logo do Detran.SP reproduzida fielmente -->
-      <svg class="logo-detran" viewBox="0 0 240 70" xmlns="http://www.w3.org/2000/svg">
+      <svg class="logo-detran" viewBox="0 0 320 180" xmlns="http://www.w3.org/2000/svg">
         <g>
-          <path d="M75 10 L95 25 L95 50 L75 60 Z" fill="#2563eb" opacity="0.8"/>
-          <path d="M75 10 L55 25 L75 35 Z" fill="#3b82f6"/>
-          <path d="M55 25 L55 50 L75 60 L75 35 Z" fill="#0047ab"/>
-          <text x="105" y="48" font-family="Segoe UI, Arial, sans-serif" font-weight="700" font-size="32" fill="#0f172a">Detran.SP</text>
+          <path d="M110 20 L160 55 L160 115 L110 140 Z" fill="#0047ab"/>
+          <path d="M110 20 L65 55 L110 80 Z" fill="#3b82f6"/>
+          <path d="M65 55 L65 115 L110 140 L110 80 Z" fill="#1d4ed8"/>
+          <text x="15" y="172" font-family="Segoe UI, Arial, sans-serif" font-weight="700" font-size="44" fill="#0f172a">Detran.SP</text>
         </g>
       </svg>
       <div>
@@ -259,10 +348,11 @@
   <!-- ABA 1: DASHBOARD EXECUTIVO -->
   <div id="tab-dashboard" class="tab-content active">
     <div class="kpi-grid">
-      <div class="kpi-card">
+      <!-- Cartão Total de Cargos Clicável -->
+      <div class="kpi-card clickable" onclick="abrirModalLotacoes()">
         <div class="kpi-title">Total de Cargos</div>
         <div class="kpi-value" id="kpi-total">0</div>
-        <div class="kpi-sub" id="kpi-lotacoes">0 lotações</div>
+        <div class="kpi-sub" id="kpi-lotacoes">0 lotações (🖱️ Ver Detalhes)</div>
       </div>
       <div class="kpi-card green">
         <div class="kpi-title">Com Substituto</div>
@@ -282,7 +372,7 @@
       <div class="kpi-card purple">
         <div class="kpi-title">Atos em Assinatura</div>
         <div class="kpi-value" id="kpi-bloco-assinatura">0</div>
-        <div class="kpi-sub">No bloco de assinatura</div>
+        <div class="kpi-sub">Aguardando assinatura</div>
       </div>
       <div class="kpi-card red">
         <div class="kpi-title">QTD Revogações</div>
@@ -299,9 +389,9 @@
         </div>
       </div>
       <div class="chart-card">
-        <h3>QTD Cargos por Lotação (Top 10)</h3>
+        <h3>Atos Aguardando Assinatura por Destino / Lotação</h3>
         <div class="chart-container">
-          <canvas id="graficoLotacao"></canvas>
+          <canvas id="graficoAssinaturas"></canvas>
         </div>
       </div>
     </div>
@@ -323,8 +413,25 @@
     </div>
   </div>
 
+  <!-- MODAL DE LOTAÇÕES E CARGOS -->
+  <div id="modalLotacoes" class="modal-overlay">
+    <div class="modal-card">
+      <div class="modal-header">
+        <h3>Detalhamento: Cargos por Lotação</h3>
+        <button class="close-btn" onclick="fecharModalLotacoes()">&times;</button>
+      </div>
+      <div class="modal-body">
+        <div class="filter-bar" style="margin-bottom: 15px;">
+          <input type="text" id="filtroModal" placeholder="Filtrar lotação ou cargo..." onkeyup="filtrarModalLotacoes()">
+        </div>
+        <div id="conteudoModalLotacoes">
+          <!-- Preenchido via JavaScript -->
+        </div>
+      </div>
+    </div>
+  </div>
+
   <script>
-    // Marcador onde o Node.js injeta os dados do OneDrive automaticamente:
     const DADOS_PLANILHA = /*__INICIO_DADOS__*/ [
   {
     "Lotação": "Presidência",
@@ -15017,7 +15124,8 @@
 ] /*__FIM_DADOS__*/;
 
     let chartCoberturaInstance = null;
-    let chartLotacaoInstance = null;
+    let chartAssinaturasInstance = null;
+    let estruturaLotacoesCache = {};
 
     function mudarAba(nomeAba) {
       document.querySelectorAll('.tab-content').forEach(el => el.classList.remove('active'));
@@ -15040,7 +15148,8 @@
 
       const totalCargos = DADOS_PLANILHA.length;
       const lotacoesSet = new Set();
-      const contagemLotacoes = {};
+      estruturaLotacoesCache = {};
+      const assinaturasPorLotacao = {};
       let comSubstituto = 0;
       let providasSemSubst = 0;
       let semTitular = 0;
@@ -15050,14 +15159,22 @@
       DADOS_PLANILHA.forEach(item => {
         const keys = Object.keys(item);
         const chaveLotacao = keys.find(k => k.toLowerCase().includes('lotação') || k.toLowerCase().includes('lotacao')) || keys[0];
+        const chaveCargo = keys.find(k => k.toLowerCase().includes('cargo')) || keys[1];
         const chaveTitular = keys.find(k => k.toLowerCase().includes('titular')) || '';
         const chaveSubst = keys.find(k => k.toLowerCase().includes('substituto') || k.toLowerCase().includes('subst')) || '';
         const chaveEtapas = keys.find(k => k.toLowerCase().includes('etapa') || k.toLowerCase().includes('status')) || '';
         const chaveRevogacao = keys.find(k => k.toLowerCase().includes('revoga') || k.toLowerCase().includes('portaria revogação')) || '';
 
         const lotacao = item[chaveLotacao] || 'Não informada';
+        const cargo = item[chaveCargo] || 'Cargo não informado';
+
         lotacoesSet.add(lotacao);
-        contagemLotacoes[lotacao] = (contagemLotacoes[lotacao] || 0) + 1;
+
+        // Agrupa para o Modal
+        if (!estruturaLotacoesCache[lotacao]) {
+          estruturaLotacoesCache[lotacao] = [];
+        }
+        estruturaLotacoesCache[lotacao].push(cargo);
 
         const titular = chaveTitular ? String(item[chaveTitular]).trim() : '';
         const subst = chaveSubst ? String(item[chaveSubst]).trim() : '';
@@ -15074,8 +15191,9 @@
           }
         }
 
-        if (etapas.includes('bloco') || etapas.includes('assinatura') || etapas.includes('andamento')) {
+        if (etapas.includes('bloco') || etapas.includes('assinatura') || etapas.includes('andamento') || etapas.includes('aguardando')) {
           atosBloco++;
+          assinaturasPorLotacao[lotacao] = (assinaturasPorLotacao[lotacao] || 0) + 1;
         }
 
         if (revogacao && revogacao !== '' && revogacao.toLowerCase() !== 'não') {
@@ -15096,8 +15214,44 @@
       document.getElementById('kpi-revogacoes').textContent = qtdRevogacoes;
 
       renderizarGraficoCobertura(comSubstituto, providasSemSubst);
-      renderizarGraficoLotacao(contagemLotacoes);
+      renderizarGraficoAssinaturas(assinaturasPorLotacao);
       popularTabelaCompleta(DADOS_PLANILHA);
+      construirConteudoModal(estruturaLotacoesCache);
+    }
+
+    function abrirModalLotacoes() {
+      document.getElementById('modalLotacoes').style.display = 'flex';
+    }
+
+    function fecharModalLotacoes() {
+      document.getElementById('modalLotacoes').style.display = 'none';
+    }
+
+    function construirConteudoModal(dadosAgrupados, filtro = '') {
+      const container = document.getElementById('conteudoModalLotacoes');
+      let html = '';
+
+      Object.entries(dadosAgrupados).forEach(([lotacao, cargos]) => {
+        const cargosFiltrados = cargos.filter(c => c.toLowerCase().includes(filtro.toLowerCase()) || lotacao.toLowerCase().includes(filtro.toLowerCase()));
+        
+        if (cargosFiltrados.length > 0 || lotacao.toLowerCase().includes(filtro.toLowerCase())) {
+          html += `
+            <div class="lotacao-grupo">
+              <div class="lotacao-titulo">📁 ${lotacao} (${cargos.length} cargos)</div>
+              <ul class="cargos-lista">
+                ${(filtro ? cargosFiltrados : cargos).map(c => `<li>🔹 ${c}</li>`).join('')}
+              </ul>
+            </div>
+          `;
+        }
+      });
+
+      container.innerHTML = html || '<p style="text-align:center; color:#64748b;">Nenhuma lotação ou cargo encontrado.</p>';
+    }
+
+    function filtrarModalLotacoes() {
+      const termo = document.getElementById('filtroModal').value;
+      construirConteudoModal(estruturaLotacoesCache, termo);
     }
 
     function renderizarGraficoCobertura(com, sem) {
@@ -15123,29 +15277,28 @@
       });
     }
 
-    function renderizarGraficoLotacao(contagemObj) {
-      const ctx = document.getElementById('graficoLotacao').getContext('2d');
-      if (chartLotacaoInstance) chartLotacaoInstance.destroy();
+    function renderizarGraficoAssinaturas(assinaturasObj) {
+      const ctx = document.getElementById('graficoAssinaturas').getContext('2d');
+      if (chartAssinaturasInstance) chartAssinaturasInstance.destroy();
 
-      const ordenado = Object.entries(contagemObj).sort((a, b) => b[1] - a[1]).slice(0, 10);
-      const labels = ordenado.map(item => item[0]);
-      const valores = ordenado.map(item => item[1]);
+      const ordenado = Object.entries(assinaturasObj).sort((a, b) => b[1] - a[1]);
+      const labels = ordenado.length > 0 ? ordenado.map(item => item[0]) : ['Nenhum registro'];
+      const valores = ordenado.length > 0 ? ordenado.map(item => item[1]) : [0];
 
-      chartLotacaoInstance = new Chart(ctx, {
+      chartAssinaturasInstance = new Chart(ctx, {
         type: 'bar',
         data: {
           labels: labels,
           datasets: [{
-            label: 'Qtd de Cargos',
+            label: 'Aguardando Assinatura',
             data: valores,
-            backgroundColor: '#1e3a8a',
+            backgroundColor: '#7c3aed',
             borderRadius: 4
           }]
         },
         options: {
           responsive: true,
           maintainAspectRatio: false,
-          indexAxis: 'y',
           plugins: { legend: { display: false } },
           scales: { x: { grid: { display: false } }, y: { grid: { display: false } } }
         }
