@@ -1,0 +1,102 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Dashboard Substituição - DETRAN</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: system-ui, -apple-system, sans-serif;
+      background: #f1f5f9;
+      color: #1e293b;
+      padding: 2rem;
+    }
+    .container { max-width: 1200px; margin: 0 auto; }
+    h1 { margin-bottom: 0.5rem; }
+    .subtitle { color: #64748b; margin-bottom: 2rem; }
+    .card {
+      background: white;
+      border-radius: 12px;
+      padding: 1.5rem;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+      margin-bottom: 1.5rem;
+    }
+    .kpi {
+      font-size: 2.5rem;
+      font-weight: 700;
+      color: #0f172a;
+    }
+    .kpi-label { color: #64748b; font-size: 0.9rem; }
+    pre {
+      background: #f8fafc;
+      padding: 1rem;
+      border-radius: 8px;
+      overflow: auto;
+      font-size: 0.85rem;
+      max-height: 400px;
+    }
+    .status { 
+      display: inline-block;
+      padding: 0.25rem 0.75rem;
+      border-radius: 999px;
+      font-size: 0.85rem;
+      font-weight: 500;
+    }
+    .ok { background: #dcfce7; color: #166534; }
+    .erro { background: #fee2e2; color: #991b1b; }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>Dashboard Substituição</h1>
+    <p class="subtitle">Dados carregados da planilha do OneDrive</p>
+
+    <div class="card">
+      <div class="kpi-label">Total de registros</div>
+      <div class="kpi" id="total">—</div>
+      <div style="margin-top: 0.75rem;">
+        <span class="status" id="status">Carregando...</span>
+      </div>
+    </div>
+
+    <div class="card">
+      <h3 style="margin-bottom: 1rem;">Prévia dos dados (primeiros 5 registros)</h3>
+      <pre id="preview">Carregando dados.json...</pre>
+    </div>
+  </div>
+
+  <script>
+    async function carregarDados() {
+      const statusEl = document.getElementById('status');
+      const totalEl = document.getElementById('total');
+      const previewEl = document.getElementById('preview');
+
+      try {
+        const response = await fetch('./data/dados.json?t=' + Date.now());
+        
+        if (!response.ok) {
+          throw new Error('Não foi possível carregar o arquivo dados.json');
+        }
+
+        const data = await response.json();
+
+        totalEl.textContent = data.length.toLocaleString('pt-BR');
+        statusEl.textContent = 'Dados carregados com sucesso';
+        statusEl.className = 'status ok';
+
+        // Mostra os 5 primeiros registros
+        previewEl.textContent = JSON.stringify(data.slice(0, 5), null, 2);
+
+      } catch (error) {
+        totalEl.textContent = 'Erro';
+        statusEl.textContent = error.message;
+        statusEl.className = 'status erro';
+        previewEl.textContent = error.message;
+      }
+    }
+
+    carregarDados();
+  </script>
+</body>
+</html>
