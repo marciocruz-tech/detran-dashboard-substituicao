@@ -163,7 +163,6 @@
       margin-top: 5px;
     }
 
-    /* Layout ajustado dos gráficos para títulos e rótulos completos */
     .charts-grid {
       display: grid;
       grid-template-columns: repeat(auto-fit, minmax(460px, 1fr));
@@ -314,7 +313,6 @@
       font-size: 12px;
     }
 
-    /* Estilos específicos para os cards detalhados de Revogação */
     .revog-grid-detalhes {
       display: grid;
       grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
@@ -458,7 +456,7 @@
       </div>
 
       <div class="chart-card">
-        <h3>Aguardando Assinaturas (Por Responsável / Nome)</h3>
+        <h3>Aguardando Assinaturas</h3>
         <div class="chart-subtitle">Detalhamento completo por responsável pela assinatura</div>
         <div class="chart-container" id="containerGraficoAssinaturas">
           <canvas id="graficoAssinaturasNomes"></canvas>
@@ -547,7 +545,6 @@
   </div>
 
   <script>
-    // Registra o plugin DataLabels para exibir os números ao lado das barras horizontais
     Chart.register(ChartDataLabels);
 
     const DADOS_PLANILHA = /*__INICIO_DADOS__*/ [
@@ -17793,7 +17790,6 @@
   }
 ] /*__FIM_DADOS__*/;
 
-    // Filtra eventuais linhas de cabeçalho repetidas na planilha
     const DADOS_VALIDOS = DADOS_PLANILHA.filter(item => {
       const cargo = (item['Cargo'] || '').trim().toUpperCase();
       const lotacao = (item['Lotação'] || '').trim().toUpperCase();
@@ -17813,7 +17809,6 @@
       return subst !== '' && subst.toUpperCase() !== 'SUBSTITUTO' && subst.toUpperCase() !== 'NAN';
     }
 
-    // Identifica se o registro possui revogação (via coluna PORTARIA REVOGAÇÃO, SEI REVOGAÇÃO ou menção "(Revog...)" em Substituto/Status)
     function ehRegistroRevogacao(item) {
       const portariaRevog = (item['PORTARIA REVOGAÇÃO'] || '').trim();
       const seiRevog = (item['SEI REVOGAÇÃO'] || '').trim();
@@ -17827,19 +17822,16 @@
       return false;
     }
 
-    // Extrai de forma estruturada o Substituto Atual, o Substituto Revogado, o SEI e a Portaria de Revogação
     function extrairDetalhesRevogacao(item) {
       const substRaw = (item['Substituto'] || '').trim();
       let substAtual = substRaw || 'Não informado';
       let substRevogado = (item['Substituto Revogado'] || item['SUBSTITUTO REVOGADO'] || '').trim();
 
-      // Caso 1: Texto no formato "NOME ATUAL (Revog Nome Antigo)"
       const matchParenteses = substRaw.match(/^(.*?)\s*\(\s*revog[a-zçãõ]*\.?\s*:?\s*(.*?)\s*\)$/i);
       if (matchParenteses) {
         substAtual = matchParenteses[1].trim() || 'Não informado';
         substRevogado = matchParenteses[2].trim() || 'Não especificado na célula';
       } else if (!substRevogado && substRaw) {
-        // Caso 2: Dois nomes concatenados na mesma célula (Ex: "NOME EM MAIÚSCULO Nome Em Minúsculo")
         const matchDoisNomes = substRaw.match(/^([A-ZÀ-Ú\s]{5,})\s+([A-ZÀ-Ú][a-zà-ú]+(?:\s+[A-Za-zà-ú]+)+)$/);
         if (matchDoisNomes) {
           substAtual = matchDoisNomes[1].trim();
@@ -17851,7 +17843,6 @@
         substRevogado = 'Substituição anterior revogada (ver Portaria)';
       }
 
-      // Tratamento do SEI da Revogação (usa SEI Substituição se SEI REVOGAÇÃO estiver vazio ou contiver apenas o ano como "2026")
       const seiRevogRaw = (item['SEI REVOGAÇÃO'] || '').trim();
       const seiSubstRaw = (item['SEI Substituição'] || '').trim();
       let seiFinal = 'Não informado';
@@ -17863,7 +17854,6 @@
         seiFinal = seiRevogRaw;
       }
 
-      // Tratamento da Portaria de Revogação
       const portariaRevogRaw = (item['PORTARIA REVOGAÇÃO'] || '').trim();
       const portariaSubstRaw = (item['Portaria'] || '').trim();
       const portariaFinal = portariaRevogRaw || (portariaSubstRaw ? `${portariaSubstRaw} (Portaria vinculada)` : 'Aguardando publicação / Não informada');
@@ -17899,36 +17889,22 @@
       DADOS_VALIDOS.forEach(item => {
         const statusRaw = (item['STATUS'] || '').trim();
         const motivoRaw = (item['Motivo'] || '').trim();
-        const etapaRaw = (item['Etapas'] || '').trim();
         const textoCombinado = `${statusRaw} ${motivoRaw}`.trim();
 
-        // 1. Contabiliza "Onde estão os processos" (Ignora "Com Substituto" genérico; foca nos status reais dos processos)
+        // 1. Onde estão os processos: Considera estritamente o que está cadastrado na coluna STATUS
         if (statusRaw !== '' && statusRaw.toUpperCase() !== 'STATUS') {
           const chaveStatus = statusRaw.toUpperCase();
           mapaOndeEstaoProcessos[chaveStatus] = (mapaOndeEstaoProcessos[chaveStatus] || 0) + 1;
-        } else if (etapaRaw !== '' && etapaRaw.toUpperCase() !== 'PUBLICADO' && etapaRaw.toUpperCase() !== 'ETAPAS') {
-          const chaveEtapa = `ETAPA: ${etapaRaw.toUpperCase()}`;
-          mapaOndeEstaoProcessos[chaveEtapa] = (mapaOndeEstaoProcessos[chaveEtapa] || 0) + 1;
         }
 
-        // 2. Contabiliza "Aguardando Assinaturas" preservando a identificação completa
-        if (/AGUARDANDO\s*ASS/i.test(textoCombinado) || /ASSINATURA/i.test(textoCombinado)) {
+        // 2. Aguardando Assinaturas: Extrai exatamente o texto original sobre a assinatura
+        if (/AGUARDANDO\s*ASS/i.test(textoCombinado) || /ASSINATURA/i.test(textoCombinado) || /^ASS\./i.test(statusRaw)) {
           qtdAguardandoAssinatura++;
-          let responsavel = '';
-
-          if (/AGUARDANDO\s*ASS/i.test(motivoRaw) || /ASSINATURA/i.test(motivoRaw)) {
-            responsavel = statusRaw ? `${motivoRaw} (${statusRaw})` : motivoRaw;
-          } else if (statusRaw) {
-            responsavel = statusRaw;
-          } else {
-            responsavel = textoCombinado;
-          }
-
+          let responsavel = statusRaw !== '' ? statusRaw : textoCombinado;
           mapaAssinaturas[responsavel] = (mapaAssinaturas[responsavel] || 0) + 1;
         }
       });
 
-      // Atualiza os KPIs na tela
       document.getElementById('kpi-total').textContent = totalCargos;
       document.getElementById('kpi-lotacoes').textContent = `${lotacoesUnicas.size} lotações (🖱️ Ver)`;
       document.getElementById('kpi-eleg-com').textContent = elegiveisComSubst.length;
@@ -17944,13 +17920,11 @@
     let chartAssinaturasInstance = null;
 
     function renderizarGraficos(mapaOndeEstaoProcessos, mapaAssinaturas) {
-      // Ordena os status do maior para o menor
       const entradasStatus = Object.entries(mapaOndeEstaoProcessos).sort((a, b) => b[1] - a[1]);
       const labelsStatus = entradasStatus.map(e => e[0]);
       const valoresStatus = entradasStatus.map(e => e[1]);
       const maxStatus = valoresStatus.length ? Math.max(...valoresStatus) : 10;
 
-      // Ajusta altura dinâmica se houver muitas categorias
       const containerStatus = document.getElementById('containerGraficoStatus');
       containerStatus.style.height = `${Math.max(280, labelsStatus.length * 52)}px`;
 
@@ -17960,7 +17934,7 @@
       chartStatusInstance = new Chart(ctxStatus, {
         type: 'bar',
         data: {
-          labels: labelsStatus.length ? labelsStatus : ['Sem processos em tramitação'],
+          labels: labelsStatus.length ? labelsStatus : ['Nenhum status preenchido'],
           datasets: [{
             label: 'Qtd. de Processos',
             data: valoresStatus.length ? valoresStatus : [0],
@@ -18003,7 +17977,6 @@
         }
       });
 
-      // Gráfico 2: Aguardando Assinaturas (Barras Horizontais para exibir o título/nome completo sem cortes)
       const entradasAss = Object.entries(mapaAssinaturas).sort((a, b) => b[1] - a[1]);
       const labelsAss = entradasAss.map(e => e[0]);
       const valoresAss = entradasAss.map(e => e[1]);
@@ -18109,7 +18082,6 @@
       return html;
     }
 
-    // Constrói o HTML agrupado exclusivo para o Modal de Revogações
     function construirHTMLRevogacoes(listaCargos) {
       if (!listaCargos.length) {
         return '<p style="color: #64748b; text-align: center; padding: 20px;">Nenhum processo de revogação encontrado.</p>';
@@ -18180,7 +18152,6 @@
       return html;
     }
 
-    // Funções dos Modais
     function abrirModalTotal() {
       document.getElementById('filtroModalTotal').value = '';
       document.getElementById('conteudoModalTotal').innerHTML = construirHTMLAgrupado(DADOS_VALIDOS, true);
@@ -18238,7 +18209,6 @@
       }
     }
 
-    // Tabela Completa
     function renderizarTabelaCompleta() {
       const thead = document.getElementById('cabecalho-completo');
       const tbody = document.getElementById('corpo-tabela-completo');
