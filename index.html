@@ -313,6 +313,27 @@
       font-size: 12px;
     }
 
+    .link-portaria {
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      margin-top: 3px;
+      font-size: 11.5px;
+      color: #2563eb;
+      text-decoration: none;
+      font-weight: 600;
+    }
+    .link-portaria:hover {
+      text-decoration: underline;
+    }
+
+    .subst-detalhe-container {
+      display: flex;
+      flex-direction: column;
+      align-items: flex-end;
+      text-align: right;
+    }
+
     .revog-grid-detalhes {
       display: grid;
       grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
@@ -17029,13 +17050,11 @@
         const motivoRaw = (item['Motivo'] || '').trim();
         const textoCombinado = `${statusRaw} ${motivoRaw}`.trim();
 
-        // 1. Onde estão os processos: Considera estritamente o que está cadastrado na coluna STATUS
         if (statusRaw !== '' && statusRaw.toUpperCase() !== 'STATUS') {
           const chaveStatus = statusRaw.toUpperCase();
           mapaOndeEstaoProcessos[chaveStatus] = (mapaOndeEstaoProcessos[chaveStatus] || 0) + 1;
         }
 
-        // 2. Aguardando Assinaturas: Extrai exatamente o texto original sobre a assinatura
         if (/AGUARDANDO\s*ASS/i.test(textoCombinado) || /ASSINATURA/i.test(textoCombinado) || /^ASS\./i.test(statusRaw)) {
           qtdAguardandoAssinatura++;
           let responsavel = statusRaw !== '' ? statusRaw : textoCombinado;
@@ -17173,7 +17192,7 @@
       });
     }
 
-    function construirHTMLAgrupado(listaCargos, exibirSubstituto = true) {
+    function construirHTMLAgrupado(listaCargos, exibirSubstituto = true, comPortariaLink = false) {
       if (!listaCargos.length) {
         return '<p style="color: #64748b; text-align: center; padding: 20px;">Nenhum registro encontrado.</p>';
       }
@@ -17203,13 +17222,35 @@
 
           cargos.forEach(c => {
             const titular = c['Titular'] ? c['Titular'] : '<em style="color:#94a3b8;">Vago / Sem Titular</em>';
-            const subst = c['Substituto'] ? `<span class="badge-subst">🔄 Subst: ${c['Substituto']}</span>` : '';
+            
+            let substHtml = '';
+            if (exibirSubstituto && c['Substituto']) {
+              substHtml += `<span class="badge-subst">🔄 Subst: ${c['Substituto']}</span>`;
+            }
+
+            // Tratamento da Portaria e do Link do Diário Oficial (procura por chaves como 'Link Portaria', 'Link DO', 'URL', etc.)
+            if (comPortariaLink) {
+              const portariaTexto = c['Portaria'] || '';
+              const linkPortaria = c['Link Portaria'] || c['Link DO'] || c['Link Diário Oficial'] || c['URL'] || c['Link'] || '';
+              
+              if (portariaTexto || linkPortaria) {
+                substHtml += `<div class="subst-detalhe-container">`;
+                if (portariaTexto) {
+                  substHtml += `<span style="font-size: 11px; color: #475569;">📜 ${portariaTexto}</span>`;
+                }
+                if (linkPortaria) {
+                  substHtml += `<a href="${linkPortaria}" target="_blank" class="link-portaria">🔗 Ver no Diário Oficial ↗</a>`;
+                }
+                substHtml += `</div>`;
+              }
+            }
+
             html += `<li>
               <div>
                 <strong>${c['Cargo']}</strong> <span class="badge-nivel">${c['Nível'] || ''}</span>
                 <span style="margin-left:8px; color:#475569;">— Titular: ${titular}</span>
               </div>
-              <div>${exibirSubstituto ? subst : ''}</div>
+              <div>${substHtml}</div>
             </li>`;
           });
 
@@ -17292,40 +17333,41 @@
 
     function abrirModalTotal() {
       document.getElementById('filtroModalTotal').value = '';
-      document.getElementById('conteudoModalTotal').innerHTML = construirHTMLAgrupado(DADOS_VALIDOS, true);
+      document.getElementById('conteudoModalTotal').innerHTML = construirHTMLAgrupado(DADOS_VALIDOS, true, false);
       document.getElementById('modalTotal').style.display = 'flex';
     }
     function fecharModalTotal() { document.getElementById('modalTotal').style.display = 'none'; }
     function filtrarModalTotal() {
       const termo = document.getElementById('filtroModalTotal').value.toLowerCase();
       const filtrados = DADOS_VALIDOS.filter(d => JSON.stringify(d).toLowerCase().includes(termo));
-      document.getElementById('conteudoModalTotal').innerHTML = construirHTMLAgrupado(filtrados, true);
+      document.getElementById('conteudoModalTotal').innerHTML = construirHTMLAgrupado(filtrados, true, false);
     }
 
     function abrirModalComSubst() {
       document.getElementById('filtroModalComSubst').value = '';
       const lista = DADOS_VALIDOS.filter(d => temCompetenciaSubstituicao(d) && possuiSubstituto(d));
-      document.getElementById('conteudoModalComSubst').innerHTML = construirHTMLAgrupado(lista, true);
+      // Ativa a exibição da portaria e do link do Diário Oficial neste modal específico
+      document.getElementById('conteudoModalComSubst').innerHTML = construirHTMLAgrupado(lista, true, true);
       document.getElementById('modalComSubst').style.display = 'flex';
     }
     function fecharModalComSubst() { document.getElementById('modalComSubst').style.display = 'none'; }
     function filtrarModalComSubst() {
       const termo = document.getElementById('filtroModalComSubst').value.toLowerCase();
       const lista = DADOS_VALIDOS.filter(d => temCompetenciaSubstituicao(d) && possuiSubstituto(d) && JSON.stringify(d).toLowerCase().includes(termo));
-      document.getElementById('conteudoModalComSubst').innerHTML = construirHTMLAgrupado(lista, true);
+      document.getElementById('conteudoModalComSubst').innerHTML = construirHTMLAgrupado(lista, true, true);
     }
 
     function abrirModalSemSubst() {
       document.getElementById('filtroModalSemSubst').value = '';
       const lista = DADOS_VALIDOS.filter(d => temCompetenciaSubstituicao(d) && !possuiSubstituto(d));
-      document.getElementById('conteudoModalSemSubst').innerHTML = construirHTMLAgrupado(lista, false);
+      document.getElementById('conteudoModalSemSubst').innerHTML = construirHTMLAgrupado(lista, false, false);
       document.getElementById('modalSemSubst').style.display = 'flex';
     }
     function fecharModalSemSubst() { document.getElementById('modalSemSubst').style.display = 'none'; }
     function filtrarModalSemSubst() {
       const termo = document.getElementById('filtroModalSemSubst').value.toLowerCase();
       const lista = DADOS_VALIDOS.filter(d => temCompetenciaSubstituicao(d) && !possuiSubstituto(d) && JSON.stringify(d).toLowerCase().includes(termo));
-      document.getElementById('conteudoModalSemSubst').innerHTML = construirHTMLAgrupado(lista, false);
+      document.getElementById('conteudoModalSemSubst').innerHTML = construirHTMLAgrupado(lista, false, false);
     }
 
     function abrirModalRevogacoes() {
@@ -17355,7 +17397,7 @@
 
       if (!DADOS_VALIDOS.length) return;
 
-      const colunas = ['GrupoHierarquico', 'Lotação', 'LOCAL', 'Cargo', 'Nível', 'Titular', 'Substituto', 'SEI Substituição', 'Portaria', 'PORTARIA REVOGAÇÃO', 'SEI REVOGAÇÃO', 'STATUS', 'Motivo'];
+      const colunas = ['GrupoHierarquico', 'Lotação', 'LOCAL', 'Cargo', 'Nível', 'Titular', 'Substituto', 'SEI Substituição', 'Portaria', 'Link Portaria', 'PORTARIA REVOGAÇÃO', 'SEI REVOGAÇÃO', 'STATUS', 'Motivo'];
       
       colunas.forEach(col => {
         const th = document.createElement('th');
@@ -17367,7 +17409,12 @@
         const tr = document.createElement('tr');
         colunas.forEach(col => {
           const td = document.createElement('td');
-          td.textContent = item[col] || '';
+          const val = item[col] || '';
+          if (col === 'Link Portaria' && val.startsWith('http')) {
+            td.innerHTML = `<a href="${val}" target="_blank">Acessar DO ↗</a>`;
+          } else {
+            td.textContent = val;
+          }
           tr.appendChild(td);
         });
         tbody.appendChild(tr);
