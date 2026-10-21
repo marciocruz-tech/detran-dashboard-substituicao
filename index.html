@@ -16955,6 +16955,17 @@
       return cargo !== '' && cargo !== 'CARGO' && lotacao !== 'LOTAÇÃO';
     });
 
+    // Função auxiliar para buscar chaves tolerando diferenças de maiúsculas/minúsculas (ex: 'Status' vs 'STATUS')
+    function obterPropriedade(obj, chavesPossiveis) {
+      for (const chave of chavesPossiveis) {
+        const foundKey = Object.keys(obj).find(k => k.trim().toLowerCase() === chave.toLowerCase());
+        if (foundKey && obj[foundKey] !== undefined && obj[foundKey] !== null) {
+          return String(obj[foundKey]).trim();
+        }
+      }
+      return '';
+    }
+
     function temCompetenciaSubstituicao(item) {
       const nivel = (item['Nível'] || '').toUpperCase().trim();
       const cargo = (item['Cargo'] || '').toUpperCase().trim();
@@ -16969,10 +16980,10 @@
     }
 
     function ehRegistroRevogacao(item) {
-      const portariaRevog = (item['PORTARIA REVOGAÇÃO'] || '').trim();
-      const seiRevog = (item['SEI REVOGAÇÃO'] || '').trim();
+      const portariaRevog = obterPropriedade(item, ['PORTARIA REVOGAÇÃO', 'PORTARIA REVOGACAO', 'REVOGAÇÃO']);
+      const seiRevog = obterPropriedade(item, ['SEI REVOGAÇÃO', 'SEI REVOGACAO']);
       const subst = (item['Substituto'] || '').trim();
-      const status = (item['STATUS'] || '').trim();
+      const status = obterPropriedade(item, ['Status', 'STATUS']);
       const motivo = (item['Motivo'] || '').trim();
 
       if (portariaRevog !== '' && portariaRevog.toUpperCase() !== 'REVOGAÇÃO') return true;
@@ -16984,7 +16995,7 @@
     function extrairDetalhesRevogacao(item) {
       const substRaw = (item['Substituto'] || '').trim();
       let substAtual = substRaw || 'Não informado';
-      let substRevogado = (item['Substituto Revogado'] || item['SUBSTITUTO REVOGADO'] || '').trim();
+      let substRevogado = obterPropriedade(item, ['Substituto Revogado', 'SUBSTITUTO REVOGADO']);
 
       const matchParenteses = substRaw.match(/^(.*?)\s*\(\s*revog[a-zçãõ]*\.?\s*:?\s*(.*?)\s*\)$/i);
       if (matchParenteses) {
@@ -17002,7 +17013,7 @@
         substRevogado = 'Substituição anterior revogada (ver Portaria)';
       }
 
-      const seiRevogRaw = (item['SEI REVOGAÇÃO'] || '').trim();
+      const seiRevogRaw = obterPropriedade(item, ['SEI REVOGAÇÃO', 'SEI REVOGACAO']);
       const seiSubstRaw = (item['SEI Substituição'] || '').trim();
       let seiFinal = 'Não informado';
       if (seiRevogRaw && seiRevogRaw.length > 6) {
@@ -17013,7 +17024,7 @@
         seiFinal = seiRevogRaw;
       }
 
-      const portariaRevogRaw = (item['PORTARIA REVOGAÇÃO'] || '').trim();
+      const portariaRevogRaw = obterPropriedade(item, ['PORTARIA REVOGAÇÃO', 'PORTARIA REVOGACAO']);
       const portariaSubstRaw = (item['Portaria'] || '').trim();
       const portariaFinal = portariaRevogRaw || (portariaSubstRaw ? `${portariaSubstRaw} (Portaria vinculada)` : 'Aguardando publicação / Não informada');
 
@@ -17046,18 +17057,21 @@
       const mapaOndeEstaoProcessos = {};
 
       DADOS_VALIDOS.forEach(item => {
-        const statusRaw = (item['STATUS'] || '').trim();
-        const motivoRaw = (item['Motivo'] || '').trim();
-        const textoCombinado = `${statusRaw} ${motivoRaw}`.trim();
+        // Busca flexível pela coluna Status (independente de maiúsculas/minúsculas)
+        const statusVal = obterPropriedade(item, ['Status', 'STATUS']);
+        const motivoVal = (item['Motivo'] || '').trim();
 
-        if (statusRaw !== '' && statusRaw.toUpperCase() !== 'STATUS') {
-          const chaveStatus = statusRaw.toUpperCase();
+        // 1. Onde estão os processos: Considera estritamente o valor preenchido na coluna Status
+        if (statusVal !== '' && statusVal.toUpperCase() !== 'STATUS') {
+          const chaveStatus = statusVal.toUpperCase();
           mapaOndeEstaoProcessos[chaveStatus] = (mapaOndeEstaoProcessos[chaveStatus] || 0) + 1;
         }
 
-        if (/AGUARDANDO\s*ASS/i.test(textoCombinado) || /ASSINATURA/i.test(textoCombinado) || /^ASS\./i.test(statusRaw)) {
+        // 2. Aguardando Assinaturas: Extrai exatamente o texto original sobre a assinatura
+        const textoCombinado = `${statusVal} ${motivoVal}`.trim();
+        if (/AGUARDANDO\s*ASS/i.test(textoCombinado) || /ASSINATURA/i.test(textoCombinado) || /^ASS\./i.test(statusVal)) {
           qtdAguardandoAssinatura++;
-          let responsavel = statusRaw !== '' ? statusRaw : textoCombinado;
+          let responsavel = statusVal !== '' ? statusVal : textoCombinado;
           mapaAssinaturas[responsavel] = (mapaAssinaturas[responsavel] || 0) + 1;
         }
       });
@@ -17228,10 +17242,9 @@
               substHtml += `<span class="badge-subst">🔄 Subst: ${c['Substituto']}</span>`;
             }
 
-            // Tratamento da Portaria e do Link do Diário Oficial (procura por chaves como 'Link Portaria', 'Link DO', 'URL', etc.)
             if (comPortariaLink) {
               const portariaTexto = c['Portaria'] || '';
-              const linkPortaria = c['Link Portaria'] || c['Link DO'] || c['Link Diário Oficial'] || c['URL'] || c['Link'] || '';
+              const linkPortaria = obterPropriedade(c, ['Link DOE', 'Link Portaria', 'Link DO', 'Link Diário Oficial', 'URL', 'Link']);
               
               if (portariaTexto || linkPortaria) {
                 substHtml += `<div class="subst-detalhe-container">`;
@@ -17239,7 +17252,7 @@
                   substHtml += `<span style="font-size: 11px; color: #475569;">📜 ${portariaTexto}</span>`;
                 }
                 if (linkPortaria) {
-                  substHtml += `<a href="${linkPortaria}" target="_blank" class="link-portaria">🔗 Ver no Diário Oficial ↗</a>`;
+                  substHtml += `<a href="${linkPortaria}" target="_blank" class="link-portaria">🔗 Acessar Diário Oficial ↗</a>`;
                 }
                 substHtml += `</div>`;
               }
@@ -17300,7 +17313,7 @@
                   <span style="margin-left:8px; color:#334155;">— <strong>Titular:</strong> ${titular}</span>
                 </div>
                 <span style="font-size: 11px; font-weight: 700; color: #991b1b; background: #fee2e2; padding: 2px 8px; border-radius: 4px;">
-                  ${c['STATUS'] || 'REVOGAÇÃO REGISTRADA'}
+                  ${obterPropriedade(c, ['Status', 'STATUS']) || 'REVOGAÇÃO REGISTRADA'}
                 </span>
               </div>
               <div class="revog-grid-detalhes">
@@ -17346,7 +17359,6 @@
     function abrirModalComSubst() {
       document.getElementById('filtroModalComSubst').value = '';
       const lista = DADOS_VALIDOS.filter(d => temCompetenciaSubstituicao(d) && possuiSubstituto(d));
-      // Ativa a exibição da portaria e do link do Diário Oficial neste modal específico
       document.getElementById('conteudoModalComSubst').innerHTML = construirHTMLAgrupado(lista, true, true);
       document.getElementById('modalComSubst').style.display = 'flex';
     }
@@ -17397,7 +17409,7 @@
 
       if (!DADOS_VALIDOS.length) return;
 
-      const colunas = ['GrupoHierarquico', 'Lotação', 'LOCAL', 'Cargo', 'Nível', 'Titular', 'Substituto', 'SEI Substituição', 'Portaria', 'Link Portaria', 'PORTARIA REVOGAÇÃO', 'SEI REVOGAÇÃO', 'STATUS', 'Motivo'];
+      const colunas = ['GrupoHierarquico', 'Lotação', 'LOCAL', 'Cargo', 'Nível', 'Titular', 'Substituto', 'SEI Substituição', 'Portaria', 'Link DOE', 'PORTARIA REVOGAÇÃO', 'SEI REVOGAÇÃO', 'Status', 'Motivo'];
       
       colunas.forEach(col => {
         const th = document.createElement('th');
@@ -17409,9 +17421,9 @@
         const tr = document.createElement('tr');
         colunas.forEach(col => {
           const td = document.createElement('td');
-          const val = item[col] || '';
-          if (col === 'Link Portaria' && val.startsWith('http')) {
-            td.innerHTML = `<a href="${val}" target="_blank">Acessar DO ↗</a>`;
+          const val = obterPropriedade(item, [col]) || '';
+          if (col.toLowerCase().includes('link') && val.startsWith('http')) {
+            td.innerHTML = `<a href="${val}" target="_blank">Acessar DOE ↗</a>`;
           } else {
             td.textContent = val;
           }
