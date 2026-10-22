@@ -16925,4 +16925,433 @@
         const statusVal = obterPropriedade(item, ['Status', 'STATUS']);
         const motivoVal = (item['Motivo'] || '').trim();
 
-        if (statusVal !== '' && statusVal.toUpperCase
+        if (statusVal !== '' && statusVal.toUpperCase() !== 'STATUS') {
+          const chaveStatus = statusVal.toUpperCase();
+          mapaOndeEstaoProcessos[chaveStatus] = (mapaOndeEstaoProcessos[chaveStatus] || 0) + 1;
+        }
+
+        const textoCombinado = `${statusVal} ${motivoVal}`.trim();
+        if (/AGUARDANDO\s*ASS/i.test(textoCombinado) || /ASSINATURA/i.test(textoCombinado) || /^ASS\./i.test(statusVal)) {
+          qtdAguardandoAssinatura++;
+          let responsavel = statusVal !== '' ? statusVal : textoCombinado;
+          mapaAssinaturas[responsavel] = (mapaAssinaturas[responsavel] || 0) + 1;
+        }
+      });
+
+      document.getElementById('kpi-total').textContent = totalCargos;
+      document.getElementById('kpi-lotacoes').textContent = `${lotacoesUnicas.size} lotações (🖱️ Ver)`;
+      document.getElementById('kpi-eleg-com').textContent = elegiveisComSubst.length;
+      document.getElementById('kpi-eleg-sem').textContent = elegiveisSemSubst.length;
+      document.getElementById('kpi-aguardando-assinatura').textContent = qtdAguardandoAssinatura;
+      document.getElementById('kpi-revogacoes').textContent = listaRevogacoes.length;
+
+      renderizarGraficos(mapaOndeEstaoProcessos, mapaAssinaturas);
+      renderizarTabelaCompleta();
+    }
+
+    let chartStatusInstance = null;
+    let chartAssinaturasInstance = null;
+
+    function renderizarGraficos(mapaOndeEstaoProcessos, mapaAssinaturas) {
+      const entradasStatus = Object.entries(mapaOndeEstaoProcessos).sort((a, b) => b[1] - a[1]);
+      const labelsStatus = entradasStatus.map(e => e[0]);
+      const valoresStatus = entradasStatus.map(e => e[1]);
+      const maxStatus = valoresStatus.length ? Math.max(...valoresStatus) : 10;
+
+      const containerStatus = document.getElementById('containerGraficoStatus');
+      containerStatus.style.height = `${Math.max(280, labelsStatus.length * 52)}px`;
+
+      const ctxStatus = document.getElementById('graficoStatus').getContext('2d');
+      if (chartStatusInstance) chartStatusInstance.destroy();
+
+      chartStatusInstance = new Chart(ctxStatus, {
+        type: 'bar',
+        data: {
+          labels: labelsStatus.length ? labelsStatus : ['Nenhum status preenchido'],
+          datasets: [{
+            label: 'Qtd. de Processos',
+            data: valoresStatus.length ? valoresStatus : [0],
+            backgroundColor: ['#1e3a8a', '#0284c7', '#d97706', '#7c3aed', '#16a34a', '#dc2626', '#475569'],
+            borderRadius: 6,
+            barThickness: 28
+          }]
+        },
+        options: {
+          indexAxis: 'y',
+          responsive: true,
+          maintainAspectRatio: false,
+          layout: {
+            padding: { right: 45, left: 5 }
+          },
+          scales: {
+            x: {
+              beginAtZero: true,
+              suggestedMax: maxStatus + Math.ceil(maxStatus * 0.2),
+              ticks: { precision: 0 }
+            },
+            y: {
+              ticks: {
+                autoSkip: false,
+                font: { size: 12, weight: '600' },
+                color: '#0f172a'
+              }
+            }
+          },
+          plugins: {
+            legend: { display: false },
+            datalabels: {
+              anchor: 'end',
+              align: 'end',
+              color: '#0f172a',
+              font: { weight: 'bold', size: 13 },
+              formatter: (value) => value
+            }
+          }
+        }
+      });
+
+      const entradasAss = Object.entries(mapaAssinaturas).sort((a, b) => b[1] - a[1]);
+      const labelsAss = entradasAss.map(e => e[0]);
+      const valoresAss = entradasAss.map(e => e[1]);
+      const maxAss = valoresAss.length ? Math.max(...valoresAss) : 5;
+
+      const containerAss = document.getElementById('containerGraficoAssinaturas');
+      containerAss.style.height = `${Math.max(280, labelsAss.length * 60)}px`;
+
+      const ctxAssinaturas = document.getElementById('graficoAssinaturasNomes').getContext('2d');
+      if (chartAssinaturasInstance) chartAssinaturasInstance.destroy();
+
+      chartAssinaturasInstance = new Chart(ctxAssinaturas, {
+        type: 'bar',
+        data: {
+          labels: labelsAss.length ? labelsAss : ['Nenhuma pendência de assinatura'],
+          datasets: [{
+            label: 'Processos Aguardando Assinatura',
+            data: valoresAss.length ? valoresAss : [0],
+            backgroundColor: '#7c3aed',
+            borderRadius: 6,
+            barThickness: 28
+          }]
+        },
+        options: {
+          indexAxis: 'y',
+          responsive: true,
+          maintainAspectRatio: false,
+          layout: {
+            padding: { right: 45, left: 5 }
+          },
+          scales: {
+            x: {
+              beginAtZero: true,
+              suggestedMax: maxAss + 1,
+              ticks: { precision: 0 }
+            },
+            y: {
+              ticks: {
+                autoSkip: false,
+                font: { size: 12, weight: '600' },
+                color: '#0f172a'
+              }
+            }
+          },
+          plugins: {
+            legend: { display: false },
+            datalabels: {
+              anchor: 'end',
+              align: 'end',
+              color: '#7c3aed',
+              font: { weight: 'bold', size: 13 },
+              formatter: (value) => value
+            }
+          }
+        }
+      });
+    }
+
+    function construirHTMLAgrupado(listaCargos, exibirSubstituto = true, comPortariaLink = false) {
+      if (!listaCargos.length) {
+        return '<p style="color: #64748b; text-align: center; padding: 20px;">Nenhum registro encontrado.</p>';
+      }
+
+      const grupos = {};
+      listaCargos.forEach(item => {
+        const g = item['GrupoHierarquico'] || 'Geral';
+        const l = item['Lotação'] || 'Sem Lotação';
+        if (!grupos[g]) grupos[g] = {};
+        if (!grupos[g][l]) grupos[g][l] = [];
+        grupos[g][l].push(item);
+      });
+
+      let html = '';
+      for (const [nomeGrupo, lotacoes] of Object.entries(grupos)) {
+        const totalGrupo = Object.values(lotacoes).reduce((acc, arr) => acc + arr.length, 0);
+        html += `<div class="grupo-bloco">
+          <div class="grupo-titulo">
+            <span>${nomeGrupo}</span>
+            <span>${totalGrupo} cargo(s)</span>
+          </div>`;
+
+        for (const [nomeLotacao, cargos] of Object.entries(lotacoes)) {
+          html += `<div class="lotacao-subgrupo">
+            <div class="lotacao-nome">📍 ${nomeLotacao} (${cargos[0]['LOCAL'] || 'Sede'})</div>
+            <ul class="cargos-lista">`;
+
+          cargos.forEach(c => {
+            const titular = c['Titular'] ? c['Titular'] : '<em style="color:#94a3b8;">Vago / Sem Titular</em>';
+            
+            let substHtml = '';
+            if (exibirSubstituto && c['Substituto']) {
+              substHtml += `<span class="badge-subst">🔄 Subst: ${c['Substituto']}</span>`;
+            }
+
+            if (comPortariaLink) {
+              const portariaTexto = c['Portaria'] || '';
+              const linkPortaria = obterPropriedade(c, ['Link DOE', 'Link Portaria', 'Link DO', 'Link Diário Oficial', 'URL', 'Link']);
+              
+              if (portariaTexto || linkPortaria) {
+                substHtml += `<div class="subst-detalhe-container">`;
+                if (portariaTexto) {
+                  substHtml += `<span style="font-size: 11px; color: #475569;">📜 ${portariaTexto}</span>`;
+                }
+                if (linkPortaria) {
+                  substHtml += `<a href="${linkPortaria}" target="_blank" class="link-portaria">🔗 Acessar Diário Oficial ↗</a>`;
+                }
+                substHtml += `</div>`;
+              }
+            }
+
+            html += `<li>
+              <div>
+                <strong>${c['Cargo']}</strong> <span class="badge-nivel">${c['Nível'] || ''}</span>
+                <span style="margin-left:8px; color:#475569;">— Titular: ${titular}</span>
+              </div>
+              <div>${substHtml}</div>
+            </li>`;
+          });
+
+          html += `</ul></div>`;
+        }
+        html += `</div>`;
+      }
+      return html;
+    }
+
+    function construirHTMLRevogacoes(listaCargos) {
+      if (!listaCargos.length) {
+        return '<p style="color: #64748b; text-align: center; padding: 20px;">Nenhum processo de revogação encontrado.</p>';
+      }
+
+      const grupos = {};
+      listaCargos.forEach(item => {
+        const diretoria = item['GrupoHierarquico'] || 'Diretoria / Unidade Central';
+        const lotacao = item['Lotação'] || 'Sem Lotação';
+        if (!grupos[diretoria]) grupos[diretoria] = {};
+        if (!grupos[diretoria][lotacao]) grupos[diretoria][lotacao] = [];
+        grupos[diretoria][lotacao].push(item);
+      });
+
+      let html = '';
+      for (const [nomeDiretoria, lotacoes] of Object.entries(grupos)) {
+        const totalDiretoria = Object.values(lotacoes).reduce((acc, arr) => acc + arr.length, 0);
+        html += `<div class="grupo-bloco">
+          <div class="grupo-titulo" style="background: #991b1b;">
+            <span>🏛️ Diretoria / Unidade: ${nomeDiretoria}</span>
+            <span>${totalDiretoria} revogação(ões)</span>
+          </div>`;
+
+        for (const [nomeLotacao, cargos] of Object.entries(lotacoes)) {
+          html += `<div class="lotacao-subgrupo">
+            <div class="lotacao-nome">📍 Lotação: ${nomeLotacao} (${cargos[0]['LOCAL'] || 'Sede'})</div>
+            <ul class="cargos-lista">`;
+
+          cargos.forEach(c => {
+            const titular = c['Titular'] ? c['Titular'] : '<em style="color:#94a3b8;">Vago / Sem Titular</em>';
+            const infoRevog = extrairDetalhesRevogacao(c);
+
+            html += `<li style="flex-direction: column; align-items: flex-start;">
+              <div style="width: 100%; display: flex; justify-content: space-between; align-items: center;">
+                <div>
+                  <strong>${c['Cargo']}</strong> <span class="badge-nivel">${c['Nível'] || ''}</span>
+                  <span style="margin-left:8px; color:#334155;">— <strong>Titular:</strong> ${titular}</span>
+                </div>
+                <span style="font-size: 11px; font-weight: 700; color: #991b1b; background: #fee2e2; padding: 2px 8px; border-radius: 4px;">
+                  ${obterPropriedade(c, ['Status', 'STATUS']) || 'REVOGAÇÃO REGISTRADA'}
+                </span>
+              </div>
+              <div class="revog-grid-detalhes">
+                <div>
+                  <span class="revog-item-label">Substituto Atual</span>
+                  <span class="revog-val-atual">✅ ${infoRevog.substAtual}</span>
+                </div>
+                <div>
+                  <span class="revog-item-label">Substituto Revogado</span>
+                  <span class="revog-val-antigo">❌ ${infoRevog.substRevogado}</span>
+                </div>
+                <div>
+                  <span class="revog-item-label">SEI da Revogação</span>
+                  <span>📄 ${infoRevog.seiRevogacao}</span>
+                </div>
+                <div>
+                  <span class="revog-item-label">Portaria de Revogação</span>
+                  <span>📜 ${infoRevog.portariaRevogacao}</span>
+                </div>
+              </div>
+            </li>`;
+          });
+
+          html += `</ul></div>`;
+        }
+        html += `</div>`;
+      }
+      return html;
+    }
+
+    function abrirModalTotal() {
+      document.getElementById('filtroModalTotal').value = '';
+      document.getElementById('conteudoModalTotal').innerHTML = construirHTMLAgrupado(DADOS_VALIDOS, true, false);
+      document.getElementById('modalTotal').style.display = 'flex';
+    }
+    function fecharModalTotal() { document.getElementById('modalTotal').style.display = 'none'; }
+    function filtrarModalTotal() {
+      const termo = document.getElementById('filtroModalTotal').value.toLowerCase();
+      const filtrados = DADOS_VALIDOS.filter(d => JSON.stringify(d).toLowerCase().includes(termo));
+      document.getElementById('conteudoModalTotal').innerHTML = construirHTMLAgrupado(filtrados, true, false);
+    }
+
+    function abrirModalComSubst() {
+      document.getElementById('filtroModalComSubst').value = '';
+      const lista = DADOS_VALIDOS.filter(d => temCompetenciaSubstituicao(d) && possuiSubstituto(d));
+      document.getElementById('conteudoModalComSubst').innerHTML = construirHTMLAgrupado(lista, true, true);
+      document.getElementById('modalComSubst').style.display = 'flex';
+    }
+    function fecharModalComSubst() { document.getElementById('modalComSubst').style.display = 'none'; }
+    function filtrarModalComSubst() {
+      const termo = document.getElementById('filtroModalComSubst').value.toLowerCase();
+      const lista = DADOS_VALIDOS.filter(d => temCompetenciaSubstituicao(d) && possuiSubstituto(d) && JSON.stringify(d).toLowerCase().includes(termo));
+      document.getElementById('conteudoModalComSubst').innerHTML = construirHTMLAgrupado(lista, true, true);
+    }
+
+    function abrirModalSemSubst() {
+      document.getElementById('filtroModalSemSubst').value = '';
+      const lista = DADOS_VALIDOS.filter(d => temCompetenciaSubstituicao(d) && !possuiSubstituto(d));
+      document.getElementById('conteudoModalSemSubst').innerHTML = construirHTMLAgrupado(lista, false, false);
+      document.getElementById('modalSemSubst').style.display = 'flex';
+    }
+    function fecharModalSemSubst() { document.getElementById('modalSemSubst').style.display = 'none'; }
+    function filtrarModalSemSubst() {
+      const termo = document.getElementById('filtroModalSemSubst').value.toLowerCase();
+      const lista = DADOS_VALIDOS.filter(d => temCompetenciaSubstituicao(d) && !possuiSubstituto(d) && JSON.stringify(d).toLowerCase().includes(termo));
+      document.getElementById('conteudoModalSemSubst').innerHTML = construirHTMLAgrupado(lista, false, false);
+    }
+
+    function abrirModalRevogacoes() {
+      document.getElementById('filtroModalRevogacoes').value = '';
+      const lista = DADOS_VALIDOS.filter(ehRegistroRevogacao);
+      document.getElementById('conteudoModalRevogacoes').innerHTML = construirHTMLRevogacoes(lista);
+      document.getElementById('modalRevogacoes').style.display = 'flex';
+    }
+    function fecharModalRevogacoes() { document.getElementById('modalRevogacoes').style.display = 'none'; }
+    function filtrarModalRevogacoes() {
+      const termo = document.getElementById('filtroModalRevogacoes').value.toLowerCase();
+      const lista = DADOS_VALIDOS.filter(d => ehRegistroRevogacao(d) && JSON.stringify(d).toLowerCase().includes(termo));
+      document.getElementById('conteudoModalRevogacoes').innerHTML = construirHTMLRevogacoes(lista);
+    }
+
+    function abrirModalVerMais(index) {
+      const item = DADOS_VALIDOS[index];
+      if (!item) return;
+
+      const titulo = document.getElementById('tituloModalVerMais');
+      if (titulo) {
+        titulo.textContent = `${item['Cargo'] || 'Cargo'} — ${item['Lotação'] || 'Lotação'}`;
+      }
+
+      const container = document.getElementById('conteudoModalVerMais');
+      container.innerHTML = '';
+
+      Object.entries(item).forEach(([chave, valor]) => {
+        const valStr = (valor !== undefined && valor !== null && String(valor).trim() !== '') ? String(valor).trim() : '—';
+        const div = document.createElement('div');
+        div.className = 'detalhe-card-item';
+
+        const label = chave === 'GrupoHierarquico' ? 'Diretoria / Unidade' : (chave === 'LocalUnidade' ? 'Unidade / Local' : chave);
+        if (chave.toLowerCase().includes('link') && valStr.startsWith('http')) {
+          div.innerHTML = `<strong>${label}</strong><span><a href="${valStr}" target="_blank" class="link-portaria">🔗 Acessar Documento ↗</a></span>`;
+        } else {
+          div.innerHTML = `<strong>${label}</strong><span>${valStr}</span>`;
+        }
+        container.appendChild(div);
+      });
+
+      document.getElementById('modalVerMais').style.display = 'flex';
+    }
+
+    function fecharModalVerMais() {
+      document.getElementById('modalVerMais').style.display = 'none';
+    }
+
+    function fecharModalFora(event, modalId) {
+      if (event.target.id === modalId) {
+        document.getElementById(modalId).style.display = 'none';
+      }
+    }
+
+    function renderizarTabelaCompleta() {
+      const tbody = document.getElementById('corpo-tabela-completo');
+      if (!tbody) return;
+      tbody.innerHTML = '';
+
+      if (!DADOS_VALIDOS.length) return;
+
+      DADOS_VALIDOS.forEach((item, index) => {
+        const tr = document.createElement('tr');
+
+        const diretoria = item['GrupoHierarquico'] || '';
+        const lotacao = item['Lotação'] || '';
+        const local = item['LOCAL'] || item['LocalUnidade'] || '';
+        const cargo = item['Cargo'] || '';
+        const nivel = item['Nível'] || '';
+        const titular = item['Titular'] || '';
+        const substituto = item['Substituto'] || '';
+        const seiSubst = item['SEI Substituição'] || '';
+        const portaria = item['Portaria'] || '';
+        const linkDoe = obterPropriedade(item, ['Link DOE', 'Link Portaria', 'Link DO', 'URL', 'Link']);
+
+        const cargoNivelHtml = nivel
+          ? `<strong>${cargo}</strong> <span class="badge-nivel">${nivel}</span>`
+          : `<strong>${cargo}</strong>`;
+
+        const linkHtml = (linkDoe && linkDoe.startsWith('http'))
+          ? `<a href="${linkDoe}" target="_blank" class="link-portaria">Acessar DOE ↗</a>`
+          : (linkDoe || '');
+
+        tr.innerHTML = `
+          <td>${diretoria}</td>
+          <td>${lotacao}</td>
+          <td>${local}</td>
+          <td>${cargoNivelHtml}</td>
+          <td>${titular}</td>
+          <td>${substituto}</td>
+          <td>${seiSubst}</td>
+          <td>${portaria}</td>
+          <td>${linkHtml}</td>
+          <td style="text-align: center;">
+            <button class="btn-ver-mais" onclick="abrirModalVerMais(${index})">Ver Mais</button>
+          </td>
+        `;
+        tbody.appendChild(tr);
+      });
+    }
+
+    function filtrarTabelaCompleta() {
+      const termo = document.getElementById('filtroTabela').value.toLowerCase();
+      const linhas = document.querySelectorAll('#corpo-tabela-completo tr');
+      linhas.forEach(tr => {
+        tr.style.display = tr.textContent.toLowerCase().includes(termo) ? '' : 'none';
+      });
+    }
+
+    window.addEventListener('DOMContentLoaded', inicializarDashboard);
+  </script>
+</body>
+</html>
