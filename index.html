@@ -365,7 +365,7 @@
       font-weight: 700;
     }
 
-    /* Estilo do Modal "Ver +" em formato de Ficha Detalhada (Corporativa) */
+    /* Estilo Ficha de Cadastro Corporativa (Linhas Horizontais) */
     .ficha-detalhada {
       display: flex;
       flex-direction: column;
@@ -379,14 +379,11 @@
       display: flex;
       justify-content: space-between;
       align-items: center;
-      padding: 10px 18px;
+      padding: 12px 20px;
       border-bottom: 1px solid #f1f5f9;
-      font-size: 13.5px;
+      font-size: 14px;
     }
     .ficha-linha:nth-child(even) {
-      background-color: #fafafa;
-    }
-    .ficha-linha:hover {
       background-color: #f8fafc;
     }
     .ficha-label {
@@ -394,7 +391,7 @@
       color: #1e3a8a;
       text-transform: uppercase;
       font-size: 12px;
-      letter-spacing: 0.3px;
+      letter-spacing: 0.4px;
       flex: 0 0 35%;
     }
     .ficha-valor {
@@ -19143,7 +19140,7 @@
       let html = '<div class="ficha-detalhada">';
       for (const [chave, valor] of Object.entries(item)) {
         if (chave === 'GrupoHierarquico' || chave === 'LocalUnidade') continue;
-        const valorExibido = valor !== undefined && valor !== null && valor !== '' ? String(valor) : '<em style="color:#94a3b8;">-</em>';
+        const valorExibido = valor !== undefined && valor !== null && valor !== '' ? String(valor) : '-';
         
         let conteudoFormatado = valorExibido;
         if (chave.toLowerCase().includes('link') && valorExibido.startsWith('http')) {
@@ -19152,7 +19149,7 @@
 
         html += `
           <div class="ficha-linha">
-            <span class="ficha-label">${chave}:</span>
+            <span class="ficha-label">${chave}</span>
             <span class="ficha-valor">${conteudoFormatado}</span>
           </div>
         `;
