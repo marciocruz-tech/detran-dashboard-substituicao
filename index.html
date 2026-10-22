@@ -16809,39 +16809,27 @@
       const matchParenteses = substRaw.match(/^(.*?)\s*\(\s*revog[a-zçãõ]*\.?\s*:?\s*(.*?)\s*\)$/i);
       if (matchParenteses) {
         substAtual = matchParenteses[1].trim() || 'Não informado';
-        substRevogado = matchParenteses[2].trim() || 'Não especificado na célula';
-      } else if (!substRevogado && substRaw) {
-        const matchDoisNomes = substRaw.match(/^([A-ZÀ-Ú\s]{5,})\s+([A-ZÀ-Ú][a-zà-ú]+(?:\s+[A-Za-zà-ú]+)+)$/);
-        if (matchDoisNomes) {
-          substAtual = matchDoisNomes[1].trim();
-          substRevogado = matchDoisNomes[2].trim();
-        }
+        substRevogado = matchParenteses[2].trim() || 'Substituição anterior revogada';
+      } else if (!substRevogado) {
+        substRevogado = substAtual !== 'Não informado' ? 'Substituição anterior registrada' : 'Não informado';
       }
 
-      if (!substRevogado) {
-        substRevogado = 'Substituição anterior revogada (ver Portaria)';
+      const portariaRevogTexto = obterPropriedade(item, ['PORTARIA REVOGAÇÃO', 'PORTARIA REVOGACAO', 'REVOGAÇÃO']);
+      const linkRevog = obterPropriedade(item, ['Link Revogação', 'Link Revogacao', 'Link DOE', 'Link Portaria']);
+
+      let portariaRevogacaoHtml = portariaRevogTexto || 'Não informada';
+      if (linkRevog && linkRevog.startsWith('http')) {
+        portariaRevogacaoHtml = `<a href="${linkRevog}" target="_blank" class="link-portaria">🔗 ${portariaRevogTexto || 'Acessar Portaria de Revogação'} ↗</a>`;
       }
 
       const seiRevogRaw = obterPropriedade(item, ['SEI REVOGAÇÃO', 'SEI REVOGACAO']);
-      const seiSubstRaw = (item['SEI Substituição'] || '').trim();
-      let seiFinal = 'Não informado';
-      if (seiRevogRaw && seiRevogRaw.length > 6) {
-        seiFinal = seiRevogRaw;
-      } else if (seiSubstRaw && seiSubstRaw !== 'a') {
-        seiFinal = seiRevogRaw ? `${seiSubstRaw} (Ref: ${seiRevogRaw})` : seiSubstRaw;
-      } else if (seiRevogRaw) {
-        seiFinal = seiRevogRaw;
-      }
-
-      const portariaRevogRaw = obterPropriedade(item, ['PORTARIA REVOGAÇÃO', 'PORTARIA REVOGACAO']);
-      const portariaSubstRaw = (item['Portaria'] || '').trim();
-      const portariaFinal = portariaRevogRaw || (portariaSubstRaw ? `${portariaSubstRaw} (Portaria vinculada)` : 'Aguardando publicação / Não informada');
+      const seiFinal = seiRevogRaw !== '' ? seiRevogRaw : 'Não informado';
 
       return {
         substAtual,
         substRevogado,
         seiRevogacao: seiFinal,
-        portariaRevogacao: portariaFinal
+        portariaRevogacao: portariaRevogacaoHtml
       };
     }
 
