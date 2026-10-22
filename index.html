@@ -5,7 +5,6 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Dashboard & Estrutura Completa | DETRAN-SP</title>
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-  <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2.2.0"></script>
   <style>
     :root {
       --primary: #0f172a;
@@ -627,8 +626,6 @@
   </div>
 
   <script>
-    Chart.register(ChartDataLabels);
-
     const DADOS_PLANILHA = /*__INICIO_DADOS__*/ [
   {
     "Lotação": "Presidência",
@@ -16986,7 +16983,7 @@
           responsive: true,
           maintainAspectRatio: false,
           layout: {
-            padding: { right: 45, left: 5 }
+            padding: { right: 15, left: 5 }
           },
           scales: {
             x: {
@@ -17003,14 +17000,7 @@
             }
           },
           plugins: {
-            legend: { display: false },
-            datalabels: {
-              anchor: 'end',
-              align: 'end',
-              color: '#0f172a',
-              font: { weight: 'bold', size: 13 },
-              formatter: (value) => value
-            }
+            legend: { display: false }
           }
         }
       });
@@ -17043,7 +17033,7 @@
           responsive: true,
           maintainAspectRatio: false,
           layout: {
-            padding: { right: 45, left: 5 }
+            padding: { right: 15, left: 5 }
           },
           scales: {
             x: {
@@ -17060,14 +17050,7 @@
             }
           },
           plugins: {
-            legend: { display: false },
-            datalabels: {
-              anchor: 'end',
-              align: 'end',
-              color: '#7c3aed',
-              font: { weight: 'bold', size: 13 },
-              formatter: (value) => value
-            }
+            legend: { display: false }
           }
         }
       });
@@ -17128,53 +17111,4 @@
             html += `<li>
               <div>
                 <strong>${c['Cargo']}</strong> <span class="badge-nivel">${c['Nível'] || ''}</span>
-                <span style="margin-left:8px; color:#475569;">— Titular: ${titular}</span>
-              </div>
-              <div>${substHtml}</div>
-            </li>`;
-          });
-
-          html += `</ul></div>`;
-        }
-        html += `</div>`;
-      }
-      return html;
-    }
-
-    function construirHTMLRevogacoes(listaCargos) {
-      if (!listaCargos.length) {
-        return '<p style="color: #64748b; text-align: center; padding: 20px;">Nenhum processo de revogação encontrado.</p>';
-      }
-
-      const grupos = {};
-      listaCargos.forEach(item => {
-        const diretoria = item['GrupoHierarquico'] || 'Diretoria / Unidade Central';
-        const lotacao = item['Lotação'] || 'Sem Lotação';
-        if (!grupos[diretoria]) grupos[diretoria] = {};
-        if (!grupos[diretoria][lotacao]) grupos[diretoria][lotacao] = [];
-        grupos[diretoria][lotacao].push(item);
-      });
-
-      let html = '';
-      for (const [nomeDiretoria, lotacoes] of Object.entries(grupos)) {
-        const totalDiretoria = Object.values(lotacoes).reduce((acc, arr) => acc + arr.length, 0);
-        html += `<div class="grupo-bloco">
-          <div class="grupo-titulo" style="background: #991b1b;">
-            <span>🏛️ Diretoria / Unidade: ${nomeDiretoria}</span>
-            <span>${totalDiretoria} revogação(ões)</span>
-          </div>`;
-
-        for (const [nomeLotacao, cargos] of Object.entries(lotacoes)) {
-          html += `<div class="lotacao-subgrupo">
-            <div class="lotacao-nome">📍 Lotação: ${nomeLotacao} (${cargos[0]['LOCAL'] || 'Sede'})</div>
-            <ul class="cargos-lista">`;
-
-          cargos.forEach(c => {
-            const titular = c['Titular'] ? c['Titular'] : '<em style="color:#94a3b8;">Vago / Sem Titular</em>';
-            const infoRevog = extrairDetalhesRevogacao(c);
-
-            html += `<li style="flex-direction: column; align-items: flex-start;">
-              <div style="width: 100%; display: flex; justify-content: space-between; align-items: center;">
-                <div>
-                  <strong>${c['Cargo']}</strong> <span class="badge-nivel">${c['Nível'] || ''}</span>
-                  <span style="margin-left:
+                <span style="margin-left:8px; color:#475569;">— Titular: ${tit
