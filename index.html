@@ -5,6 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Dashboard & Estrutura Completa | DETRAN-SP</title>
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2.2.0"></script>
   <style>
     :root {
       --primary: #0f172a;
@@ -183,6 +184,8 @@
       font-size: 16px;
       font-weight: 700;
       color: var(--primary);
+      white-space: normal;
+      word-wrap: break-word;
       line-height: 1.4;
     }
 
@@ -362,45 +365,6 @@
       font-weight: 700;
     }
 
-    .detalhes-grid {
-      display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
-      gap: 15px;
-    }
-    .detalhe-card-item {
-      background: #f8fafc;
-      border: 1px solid var(--border-color);
-      padding: 12px 15px;
-      border-radius: 6px;
-    }
-    .detalhe-card-item strong {
-      display: block;
-      font-size: 11px;
-      color: #64748b;
-      text-transform: uppercase;
-      margin-bottom: 4px;
-    }
-    .detalhe-card-item span {
-      font-size: 14px;
-      color: var(--primary);
-      word-break: break-word;
-    }
-
-    .btn-ver-mais {
-      background: var(--secondary);
-      color: #fff;
-      border: none;
-      padding: 5px 12px;
-      border-radius: 4px;
-      font-size: 12px;
-      font-weight: 600;
-      cursor: pointer;
-      transition: background 0.2s;
-    }
-    .btn-ver-mais:hover {
-      background: #172554;
-    }
-
     .table-card {
       background: var(--card-bg);
       padding: 20px;
@@ -530,27 +494,14 @@
       </div>
       <div class="table-responsive">
         <table id="tabela-completa">
-          <thead>
-            <tr>
-              <th>Diretoria/Unidade</th>
-              <th>Lotação</th>
-              <th>LOCAL</th>
-              <th>Cargo / Nível</th>
-              <th>Titular</th>
-              <th>Substituto</th>
-              <th>SEI Substituição</th>
-              <th>Portaria</th>
-              <th>Link DOE</th>
-              <th style="text-align: center;">Ação</th>
-            </tr>
-          </thead>
+          <thead><tr id="cabecalho-completo"></tr></thead>
           <tbody id="corpo-tabela-completo"></tbody>
         </table>
       </div>
     </div>
   </div>
 
-  <!-- Modais -->
+  <!-- Modal: Total de Cargos -->
   <div id="modalTotal" class="modal-overlay" onclick="fecharModalFora(event, 'modalTotal')">
     <div class="modal-card">
       <div class="modal-header">
@@ -566,6 +517,7 @@
     </div>
   </div>
 
+  <!-- Modal: Com Substitutos -->
   <div id="modalComSubst" class="modal-overlay" onclick="fecharModalFora(event, 'modalComSubst')">
     <div class="modal-card">
       <div class="modal-header">
@@ -581,6 +533,7 @@
     </div>
   </div>
 
+  <!-- Modal: Sem Substitutos -->
   <div id="modalSemSubst" class="modal-overlay" onclick="fecharModalFora(event, 'modalSemSubst')">
     <div class="modal-card">
       <div class="modal-header">
@@ -596,6 +549,7 @@
     </div>
   </div>
 
+  <!-- Modal: Revogações -->
   <div id="modalRevogacoes" class="modal-overlay" onclick="fecharModalFora(event, 'modalRevogacoes')">
     <div class="modal-card">
       <div class="modal-header">
@@ -611,19 +565,9 @@
     </div>
   </div>
 
-  <div id="modalVerMais" class="modal-overlay" onclick="fecharModalFora(event, 'modalVerMais')">
-    <div class="modal-card" style="max-width: 800px;">
-      <div class="modal-header">
-        <h3 id="tituloModalVerMais">Detalhes Completos do Registro</h3>
-        <button class="close-btn" onclick="fecharModalVerMais()">&times;</button>
-      </div>
-      <div class="modal-body">
-        <div id="conteudoModalVerMais" class="detalhes-grid"></div>
-      </div>
-    </div>
-  </div>
-
   <script>
+    Chart.register(ChartDataLabels);
+
     const DADOS_PLANILHA = /*__INICIO_DADOS__*/ [
   {
     "Lotação": "Presidência",
@@ -17257,39 +17201,6 @@
       document.getElementById('conteudoModalRevogacoes').innerHTML = construirHTMLRevogacoes(lista);
     }
 
-    function abrirModalVerMais(index) {
-      const item = DADOS_VALIDOS[index];
-      if (!item) return;
-
-      const titulo = document.getElementById('tituloModalVerMais');
-      if (titulo) {
-        titulo.textContent = `${item['Cargo'] || 'Cargo'} — ${item['Lotação'] || 'Lotação'}`;
-      }
-
-      const container = document.getElementById('conteudoModalVerMais');
-      container.innerHTML = '';
-
-      Object.entries(item).forEach(([chave, valor]) => {
-        const valStr = (valor !== undefined && valor !== null && String(valor).trim() !== '') ? String(valor).trim() : '—';
-        const div = document.createElement('div');
-        div.className = 'detalhe-card-item';
-
-        const label = chave === 'GrupoHierarquico' ? 'Diretoria / Unidade' : (chave === 'LocalUnidade' ? 'Unidade / Local' : chave);
-        if (chave.toLowerCase().includes('link') && valStr.startsWith('http')) {
-          div.innerHTML = `<strong>${label}</strong><span><a href="${valStr}" target="_blank" class="link-portaria">🔗 Acessar Documento ↗</a></span>`;
-        } else {
-          div.innerHTML = `<strong>${label}</strong><span>${valStr}</span>`;
-        }
-        container.appendChild(div);
-      });
-
-      document.getElementById('modalVerMais').style.display = 'flex';
-    }
-
-    function fecharModalVerMais() {
-      document.getElementById('modalVerMais').style.display = 'none';
-    }
-
     function fecharModalFora(event, modalId) {
       if (event.target.id === modalId) {
         document.getElementById(modalId).style.display = 'none';
@@ -17297,58 +17208,24 @@
     }
 
     function renderizarTabelaCompleta() {
-      const tbody = document.getElementById('corpo-tabela-completo');
-      if (!tbody) return;
-      tbody.innerHTML = '';
-
       if (!DADOS_VALIDOS.length) return;
+      const colunas = Object.keys(DADOS_VALIDOS[0]).filter(c => c !== 'GrupoHierarquico' && c !== 'LocalUnidade');
+      
+      const trCabecalho = document.getElementById('cabecalho-completo');
+      trCabecalho.innerHTML = colunas.map(c => `<th>${c}</th>`).join('');
 
-      DADOS_VALIDOS.forEach((item, index) => {
-        const tr = document.createElement('tr');
-
-        const diretoria = item['GrupoHierarquico'] || '';
-        const lotacao = item['Lotação'] || '';
-        const local = item['LOCAL'] || item['LocalUnidade'] || '';
-        const cargo = item['Cargo'] || '';
-        const nivel = item['Nível'] || '';
-        const titular = item['Titular'] || '';
-        const substituto = item['Substituto'] || '';
-        const seiSubst = item['SEI Substituição'] || '';
-        const portaria = item['Portaria'] || '';
-        const linkDoe = obterPropriedade(item, ['Link DOE', 'Link Portaria', 'Link DO', 'URL', 'Link']);
-
-        const cargoNivelHtml = nivel
-          ? `<strong>${cargo}</strong> <span class="badge-nivel">${nivel}</span>`
-          : `<strong>${cargo}</strong>`;
-
-        const linkHtml = (linkDoe && linkDoe.startsWith('http'))
-          ? `<a href="${linkDoe}" target="_blank" class="link-portaria">Acessar DOE ↗</a>`
-          : (linkDoe || '');
-
-        tr.innerHTML = `
-          <td>${diretoria}</td>
-          <td>${lotacao}</td>
-          <td>${local}</td>
-          <td>${cargoNivelHtml}</td>
-          <td>${titular}</td>
-          <td>${substituto}</td>
-          <td>${seiSubst}</td>
-          <td>${portaria}</td>
-          <td>${linkHtml}</td>
-          <td style="text-align: center;">
-            <button class="btn-ver-mais" onclick="abrirModalVerMais(${index})">Ver Mais</button>
-          </td>
-        `;
-        tbody.appendChild(tr);
-      });
+      const tbody = document.getElementById('corpo-tabela-completo');
+      tbody.innerHTML = DADOS_VALIDOS.map(item => `
+        <tr>${colunas.map(c => `<td>${item[c] || ''}</td>`).join('')}</tr>
+      `).join('');
     }
 
     function filtrarTabelaCompleta() {
       const termo = document.getElementById('filtroTabela').value.toLowerCase();
-      const linhas = document.querySelectorAll('#corpo-tabela-completo tr');
-      linhas.forEach(tr => {
-        tr.style.display = tr.textContent.toLowerCase().includes(termo) ? '' : 'none';
-      });
+      const filtrados = DADOS_VALIDOS.filter(linha => Object.values(linha).some(val => String(val).toLowerCase().includes(termo)));
+      const colunas = Object.keys(DADOS_VALIDOS[0] || {}).filter(c => c !== 'GrupoHierarquico' && c !== 'LocalUnidade');
+      const tbody = document.getElementById('corpo-tabela-completo');
+      tbody.innerHTML = filtrados.map(linha => `<tr>${colunas.map(col => `<td>${linha[col] || ''}</td>`).join('')}</tr>`).join('');
     }
 
     window.addEventListener('DOMContentLoaded', inicializarDashboard);
