@@ -365,6 +365,46 @@
       font-weight: 700;
     }
 
+    /* Estilo do Modal "Ver +" (Detalhes Completos do Cargo) */
+    .detalhes-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+      gap: 15px;
+    }
+    .detalhe-card-item {
+      background: #f8fafc;
+      border: 1px solid var(--border-color);
+      padding: 12px 15px;
+      border-radius: 6px;
+    }
+    .detalhe-card-item strong {
+      display: block;
+      font-size: 11px;
+      color: #64748b;
+      text-transform: uppercase;
+      margin-bottom: 4px;
+    }
+    .detalhe-card-item span {
+      font-size: 14px;
+      color: var(--primary);
+      word-break: break-word;
+    }
+
+    .btn-ver-mais {
+      background: var(--secondary);
+      color: #fff;
+      border: none;
+      padding: 5px 12px;
+      border-radius: 4px;
+      font-size: 12px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: background 0.2s;
+    }
+    .btn-ver-mais:hover {
+      background: #172554;
+    }
+
     .table-card {
       background: var(--card-bg);
       padding: 20px;
@@ -494,14 +534,27 @@
       </div>
       <div class="table-responsive">
         <table id="tabela-completa">
-          <thead><tr id="cabecalho-completo"></tr></thead>
+          <thead>
+            <tr>
+              <th>Diretoria/Unidade</th>
+              <th>Lotação</th>
+              <th>LOCAL</th>
+              <th>Cargo / Nível</th>
+              <th>Titular</th>
+              <th>Substituto</th>
+              <th>SEI Substituição</th>
+              <th>Portaria</th>
+              <th>Link DOE</th>
+              <th style="text-align: center;">Ação</th>
+            </tr>
+          </thead>
           <tbody id="corpo-tabela-completo"></tbody>
         </table>
       </div>
     </div>
   </div>
 
-  <!-- Modal: Total de Cargos -->
+  <!-- Modais Principais -->
   <div id="modalTotal" class="modal-overlay" onclick="fecharModalFora(event, 'modalTotal')">
     <div class="modal-card">
       <div class="modal-header">
@@ -517,7 +570,6 @@
     </div>
   </div>
 
-  <!-- Modal: Com Substitutos -->
   <div id="modalComSubst" class="modal-overlay" onclick="fecharModalFora(event, 'modalComSubst')">
     <div class="modal-card">
       <div class="modal-header">
@@ -533,7 +585,6 @@
     </div>
   </div>
 
-  <!-- Modal: Sem Substitutos -->
   <div id="modalSemSubst" class="modal-overlay" onclick="fecharModalFora(event, 'modalSemSubst')">
     <div class="modal-card">
       <div class="modal-header">
@@ -549,7 +600,6 @@
     </div>
   </div>
 
-  <!-- Modal: Revogações -->
   <div id="modalRevogacoes" class="modal-overlay" onclick="fecharModalFora(event, 'modalRevogacoes')">
     <div class="modal-card">
       <div class="modal-header">
@@ -561,6 +611,19 @@
           <input type="text" id="filtroModalRevogacoes" placeholder="Filtrar por diretoria, cargo, titular, substituto, SEI ou portaria..." onkeyup="filtrarModalRevogacoes()">
         </div>
         <div id="conteudoModalRevogacoes"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal "Ver +" (Detalhes Completos da Linha) -->
+  <div id="modalVerMais" class="modal-overlay" onclick="fecharModalFora(event, 'modalVerMais')">
+    <div class="modal-card" style="max-width: 800px;">
+      <div class="modal-header">
+        <h3 id="tituloModalVerMais">Detalhes Completos do Registro</h3>
+        <button class="close-btn" onclick="fecharModalVerMais()">&times;</button>
+      </div>
+      <div class="modal-body">
+        <div id="conteudoModalVerMais" class="detalhes-grid"></div>
       </div>
     </div>
   </div>
@@ -16765,7 +16828,6 @@
       return cargo !== '' && cargo !== 'CARGO' && lotacao !== 'LOTAÇÃO';
     });
 
-    // Função auxiliar para buscar chaves tolerando diferenças de maiúsculas/minúsculas (ex: 'Status' vs 'STATUS')
     function obterPropriedade(obj, chavesPossiveis) {
       for (const chave of chavesPossiveis) {
         const foundKey = Object.keys(obj).find(k => k.trim().toLowerCase() === chave.toLowerCase());
@@ -16867,17 +16929,14 @@
       const mapaOndeEstaoProcessos = {};
 
       DADOS_VALIDOS.forEach(item => {
-        // Busca flexível pela coluna Status (independente de maiúsculas/minúsculas)
         const statusVal = obterPropriedade(item, ['Status', 'STATUS']);
         const motivoVal = (item['Motivo'] || '').trim();
 
-        // 1. Onde estão os processos: Considera estritamente o valor preenchido na coluna Status
         if (statusVal !== '' && statusVal.toUpperCase() !== 'STATUS') {
           const chaveStatus = statusVal.toUpperCase();
           mapaOndeEstaoProcessos[chaveStatus] = (mapaOndeEstaoProcessos[chaveStatus] || 0) + 1;
         }
 
-        // 2. Aguardando Assinaturas: Extrai exatamente o texto original sobre a assinatura
         const textoCombinado = `${statusVal} ${motivoVal}`.trim();
         if (/AGUARDANDO\s*ASS/i.test(textoCombinado) || /ASSINATURA/i.test(textoCombinado) || /^ASS\./i.test(statusVal)) {
           qtdAguardandoAssinatura++;
@@ -17114,144 +17173,4 @@
 
           cargos.forEach(c => {
             const titular = c['Titular'] ? c['Titular'] : '<em style="color:#94a3b8;">Vago / Sem Titular</em>';
-            const infoRevog = extrairDetalhesRevogacao(c);
-
-            html += `<li style="flex-direction: column; align-items: flex-start;">
-              <div style="width: 100%; display: flex; justify-content: space-between; align-items: center;">
-                <div>
-                  <strong>${c['Cargo']}</strong> <span class="badge-nivel">${c['Nível'] || ''}</span>
-                  <span style="margin-left:8px; color:#334155;">— <strong>Titular:</strong> ${titular}</span>
-                </div>
-                <span style="font-size: 11px; font-weight: 700; color: #991b1b; background: #fee2e2; padding: 2px 8px; border-radius: 4px;">
-                  ${obterPropriedade(c, ['Status', 'STATUS']) || 'REVOGAÇÃO REGISTRADA'}
-                </span>
-              </div>
-              <div class="revog-grid-detalhes">
-                <div>
-                  <span class="revog-item-label">Substituto Atual</span>
-                  <span class="revog-val-atual">✅ ${infoRevog.substAtual}</span>
-                </div>
-                <div>
-                  <span class="revog-item-label">Substituto Revogado</span>
-                  <span class="revog-val-antigo">❌ ${infoRevog.substRevogado}</span>
-                </div>
-                <div>
-                  <span class="revog-item-label">SEI da Revogação</span>
-                  <span>📄 ${infoRevog.seiRevogacao}</span>
-                </div>
-                <div>
-                  <span class="revog-item-label">Portaria de Revogação</span>
-                  <span>📜 ${infoRevog.portariaRevogacao}</span>
-                </div>
-              </div>
-            </li>`;
-          });
-
-          html += `</ul></div>`;
-        }
-        html += `</div>`;
-      }
-      return html;
-    }
-
-    function abrirModalTotal() {
-      document.getElementById('filtroModalTotal').value = '';
-      document.getElementById('conteudoModalTotal').innerHTML = construirHTMLAgrupado(DADOS_VALIDOS, true, false);
-      document.getElementById('modalTotal').style.display = 'flex';
-    }
-    function fecharModalTotal() { document.getElementById('modalTotal').style.display = 'none'; }
-    function filtrarModalTotal() {
-      const termo = document.getElementById('filtroModalTotal').value.toLowerCase();
-      const filtrados = DADOS_VALIDOS.filter(d => JSON.stringify(d).toLowerCase().includes(termo));
-      document.getElementById('conteudoModalTotal').innerHTML = construirHTMLAgrupado(filtrados, true, false);
-    }
-
-    function abrirModalComSubst() {
-      document.getElementById('filtroModalComSubst').value = '';
-      const lista = DADOS_VALIDOS.filter(d => temCompetenciaSubstituicao(d) && possuiSubstituto(d));
-      document.getElementById('conteudoModalComSubst').innerHTML = construirHTMLAgrupado(lista, true, true);
-      document.getElementById('modalComSubst').style.display = 'flex';
-    }
-    function fecharModalComSubst() { document.getElementById('modalComSubst').style.display = 'none'; }
-    function filtrarModalComSubst() {
-      const termo = document.getElementById('filtroModalComSubst').value.toLowerCase();
-      const lista = DADOS_VALIDOS.filter(d => temCompetenciaSubstituicao(d) && possuiSubstituto(d) && JSON.stringify(d).toLowerCase().includes(termo));
-      document.getElementById('conteudoModalComSubst').innerHTML = construirHTMLAgrupado(lista, true, true);
-    }
-
-    function abrirModalSemSubst() {
-      document.getElementById('filtroModalSemSubst').value = '';
-      const lista = DADOS_VALIDOS.filter(d => temCompetenciaSubstituicao(d) && !possuiSubstituto(d));
-      document.getElementById('conteudoModalSemSubst').innerHTML = construirHTMLAgrupado(lista, false, false);
-      document.getElementById('modalSemSubst').style.display = 'flex';
-    }
-    function fecharModalSemSubst() { document.getElementById('modalSemSubst').style.display = 'none'; }
-    function filtrarModalSemSubst() {
-      const termo = document.getElementById('filtroModalSemSubst').value.toLowerCase();
-      const lista = DADOS_VALIDOS.filter(d => temCompetenciaSubstituicao(d) && !possuiSubstituto(d) && JSON.stringify(d).toLowerCase().includes(termo));
-      document.getElementById('conteudoModalSemSubst').innerHTML = construirHTMLAgrupado(lista, false, false);
-    }
-
-    function abrirModalRevogacoes() {
-      document.getElementById('filtroModalRevogacoes').value = '';
-      const lista = DADOS_VALIDOS.filter(ehRegistroRevogacao);
-      document.getElementById('conteudoModalRevogacoes').innerHTML = construirHTMLRevogacoes(lista);
-      document.getElementById('modalRevogacoes').style.display = 'flex';
-    }
-    function fecharModalRevogacoes() { document.getElementById('modalRevogacoes').style.display = 'none'; }
-    function filtrarModalRevogacoes() {
-      const termo = document.getElementById('filtroModalRevogacoes').value.toLowerCase();
-      const lista = DADOS_VALIDOS.filter(d => ehRegistroRevogacao(d) && JSON.stringify(d).toLowerCase().includes(termo));
-      document.getElementById('conteudoModalRevogacoes').innerHTML = construirHTMLRevogacoes(lista);
-    }
-
-    function fecharModalFora(event, modalId) {
-      if (event.target.id === modalId) {
-        document.getElementById(modalId).style.display = 'none';
-      }
-    }
-
-    function renderizarTabelaCompleta() {
-      const thead = document.getElementById('cabecalho-completo');
-      const tbody = document.getElementById('corpo-tabela-completo');
-      thead.innerHTML = '';
-      tbody.innerHTML = '';
-
-      if (!DADOS_VALIDOS.length) return;
-
-      const colunas = ['GrupoHierarquico', 'Lotação', 'LOCAL', 'Cargo', 'Nível', 'Titular', 'Substituto', 'SEI Substituição', 'Portaria', 'Link DOE', 'PORTARIA REVOGAÇÃO', 'SEI REVOGAÇÃO', 'Status', 'Motivo'];
-      
-      colunas.forEach(col => {
-        const th = document.createElement('th');
-        th.textContent = col === 'GrupoHierarquico' ? 'Diretoria / Unidade' : col;
-        thead.appendChild(th);
-      });
-
-      DADOS_VALIDOS.forEach(item => {
-        const tr = document.createElement('tr');
-        colunas.forEach(col => {
-          const td = document.createElement('td');
-          const val = obterPropriedade(item, [col]) || '';
-          if (col.toLowerCase().includes('link') && val.startsWith('http')) {
-            td.innerHTML = `<a href="${val}" target="_blank">Acessar DOE ↗</a>`;
-          } else {
-            td.textContent = val;
-          }
-          tr.appendChild(td);
-        });
-        tbody.appendChild(tr);
-      });
-    }
-
-    function filtrarTabelaCompleta() {
-      const termo = document.getElementById('filtroTabela').value.toLowerCase();
-      const linhas = document.querySelectorAll('#corpo-tabela-completo tr');
-      linhas.forEach(tr => {
-        tr.style.display = tr.textContent.toLowerCase().includes(termo) ? '' : 'none';
-      });
-    }
-
-    window.addEventListener('DOMContentLoaded', inicializarDashboard);
-  </script>
-</body>
-</html>
+            const infoRevog = extrairDetalhesRevog
