@@ -365,7 +365,7 @@
       font-weight: 700;
     }
 
-    /* Estilo Ficha de Cadastro Corporativa (Linhas Horizontais) */
+    /* Estilo Ficha de Cadastro Corporativa (Linhas Horizontais) para o modal "Ver +" */
     .ficha-detalhada {
       display: flex;
       flex-direction: column;
@@ -547,18 +547,7 @@
       <div class="table-responsive">
         <table id="tabela-completa">
           <thead>
-            <tr>
-              <th>Diretoria/Unidade</th>
-              <th>Lotação</th>
-              <th>LOCAL</th>
-              <th>Cargo / Nível</th>
-              <th>Titular</th>
-              <th>Substituto</th>
-              <th>SEI Substituição</th>
-              <th>Portaria</th>
-              <th>Link DOE</th>
-              <th style="text-align: center;">Ação</th>
-            </tr>
+            <tr id="cabecalho-completo"></tr>
           </thead>
           <tbody id="corpo-tabela-completo"></tbody>
         </table>
@@ -19135,7 +19124,7 @@
       const item = DADOS_VALIDOS[index];
       if (!item) return;
 
-      document.getElementById('tituloModalVerMais').textContent = `Ficha Detalhada de Substituição — ${item['Cargo'] || 'Cargo'}`;
+      document.getElementById('tituloModalVerMais').textContent = `${item['Cargo'] || 'Cargo'} — ${item['Lotação'] || ''}`;
       
       let html = '<div class="ficha-detalhada">';
       for (const [chave, valor] of Object.entries(item)) {
@@ -19219,41 +19208,45 @@
     }
 
     function renderizarTabelaCompleta() {
+      const thead = document.getElementById('cabecalho-completo');
       const tbody = document.getElementById('corpo-tabela-completo');
+      thead.innerHTML = '';
       tbody.innerHTML = '';
 
       if (!DADOS_VALIDOS.length) return;
 
+      const colunas = ['GrupoHierarquico', 'Lotação', 'LOCAL', 'Cargo', 'Nível', 'Titular', 'Substituto', 'SEI Substituição', 'Portaria', 'Link DOE', 'PORTARIA REVOGAÇÃO', 'SEI REVOGAÇÃO', 'Status', 'Motivo'];
+      
+      colunas.forEach(col => {
+        const th = document.createElement('th');
+        th.textContent = col === 'GrupoHierarquico' ? 'Diretoria / Unidade' : col;
+        thead.appendChild(th);
+      });
+
+      const thAcao = document.createElement('th');
+      thAcao.textContent = 'Ação';
+      thAcao.style.textAlign = 'center';
+      thead.appendChild(thAcao);
+
       DADOS_VALIDOS.forEach((item, index) => {
         const tr = document.createElement('tr');
         
-        const diretoria = item['GrupoHierarquico'] || '';
-        const lotacao = item['Lotação'] || '';
-        const local = item['LOCAL'] || '';
-        const cargoNivel = `${item['Cargo'] || ''} (${item['Nível'] || ''})`;
-        const titular = item['Titular'] || '<em style="color:#94a3b8;">Vago</em>';
-        const substituto = item['Substituto'] || '-';
-        const seiSubst = item['SEI Substituição'] || '-';
-        const portaria = item['Portaria'] || '-';
-        const linkDoe = obterPropriedade(item, ['Link DOE', 'Link Portaria', 'Link DO']);
+        colunas.forEach(col => {
+          const td = document.createElement('td');
+          const val = obterPropriedade(item, [col]) || '';
+          if (col.toLowerCase().includes('link') && val.startsWith('http')) {
+            td.innerHTML = `<a href="${val}" target="_blank" class="link-portaria">Acessar DOE ↗</a>`;
+          } else {
+            td.textContent = val;
+          }
+          tr.appendChild(td);
+        });
 
-        let linkDoeHtml = '-';
-        if (linkDoe && linkDoe.startsWith('http')) {
-          linkDoeHtml = `<a href="${linkDoe}" target="_blank" style="color: #2563eb; font-weight: 600;">Acessar DOE ↗</a>`;
-        }
+        const tdAcao = document.createElement('td');
+        tdAcao.style.textAlign = 'center';
+        tdAcao.innerHTML = `<button class="btn-ver-mais" onclick="abrirModalVerMais(${index})">Ver Mais</button>`;
+        tr.appendChild(tdAcao);
 
-        tr.innerHTML = `
-          <td><strong>${diretoria}</strong></td>
-          <td>${lotacao}</td>
-          <td>${local}</td>
-          <td>${cargoNivel}</td>
-          <td>${titular}</td>
-          <td><span class="badge-subst">${subst}</span></td>
-          <td>${seiSubst}</td>
-          <td>${portaria}</td>
-          <td>${linkDoeHtml}</td>
-          <td style="text-align: center;"><button class="btn-ver-mais" onclick="abrirModalVerMais(${index})">Ver +</button></td>
-        `;
         tbody.appendChild(tr);
       });
     }
