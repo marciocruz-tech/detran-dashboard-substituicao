@@ -199,6 +199,9 @@
       position: relative;
       min-height: 320px;
       width: 100%;
+      display: flex;
+      justify-content: center;
+      align-items: center;
     }
 
     .modal-overlay {
@@ -17816,6 +17819,7 @@
       const ctxStatus = document.getElementById('graficoStatus').getContext('2d');
       if (chartStatusInstance) chartStatusInstance.destroy();
 
+      // Gráfico de Barras sem linhas de grade
       chartStatusInstance = new Chart(ctxStatus, {
         type: 'bar',
         data: {
@@ -17839,14 +17843,18 @@
             x: {
               beginAtZero: true,
               suggestedMax: maxStatus + Math.ceil(maxStatus * 0.2),
-              ticks: { precision: 0 }
+              ticks: { precision: 0 },
+              grid: { display: false }, // Linhas de grade removidas
+              border: { display: false }
             },
             y: {
               ticks: {
                 autoSkip: false,
                 font: { size: 12, weight: '600' },
                 color: '#0f172a'
-              }
+              },
+              grid: { display: false }, // Linhas de grade removidas
+              border: { display: false }
             }
           },
           plugins: {
@@ -17865,55 +17873,42 @@
       const entradasAss = Object.entries(mapaAssinaturas).sort((a, b) => b[1] - a[1]);
       const labelsAss = entradasAss.map(e => e[0]);
       const valoresAss = entradasAss.map(e => e[1]);
-      const maxAss = valoresAss.length ? Math.max(...valoresAss) : 5;
 
       const containerAss = document.getElementById('containerGraficoAssinaturas');
-      containerAss.style.height = `${Math.max(280, labelsAss.length * 60)}px`;
+      containerAss.style.height = '320px';
 
       const ctxAssinaturas = document.getElementById('graficoAssinaturasNomes').getContext('2d');
       if (chartAssinaturasInstance) chartAssinaturasInstance.destroy();
 
+      // Gráfico de Rosca (Doughnut) com furo no meio e cores diferentes
       chartAssinaturasInstance = new Chart(ctxAssinaturas, {
-        type: 'bar',
+        type: 'doughnut',
         data: {
           labels: labelsAss.length ? labelsAss : ['Nenhuma pendência de assinatura'],
           datasets: [{
-            label: 'Processos Aguardando Assinatura',
-            data: valoresAss.length ? valoresAss : [0],
-            backgroundColor: '#7c3aed',
-            borderRadius: 6,
-            barThickness: 28
+            data: valoresAss.length ? valoresAss : [1],
+            backgroundColor: ['#7c3aed', '#2563eb', '#16a34a', '#d97706', '#dc2626', '#0284c7', '#475569'],
+            borderWidth: 2,
+            borderColor: '#ffffff'
           }]
         },
         options: {
-          indexAxis: 'y',
           responsive: true,
           maintainAspectRatio: false,
-          layout: {
-            padding: { right: 45, left: 5 }
-          },
-          scales: {
-            x: {
-              beginAtZero: true,
-              suggestedMax: maxAss + 1,
-              ticks: { precision: 0 }
-            },
-            y: {
-              ticks: {
-                autoSkip: false,
+          cutout: '60%'. // Furo no meio
+          plugins: {
+            legend: {
+              position: 'bottom',
+              labels: {
+                boxWidth: 14,
                 font: { size: 12, weight: '600' },
                 color: '#0f172a'
               }
-            }
-          },
-          plugins: {
-            legend: { display: false },
+            },
             datalabels: {
-              anchor: 'end',
-              align: 'end',
-              color: '#7c3aed',
+              color: '#ffffff',
               font: { weight: 'bold', size: 13 },
-              formatter: (value) => value
+              formatter: (value) => value > 0 ? value : ''
             }
           }
         }
