@@ -784,17 +784,23 @@
         <div class="kpi-value" id="kpi-total">0</div>
         <div class="kpi-sub" id="kpi-lotacoes">0 lotações (🖱️ Ver)</div>
       </div>
+
+      <div class="kpi-card clickable" style="border-left-color: #0284c7;" onclick="abrirModalElegTotal()">
+        <div class="kpi-title">Cargos c/ Competência p/ Substituição</div>
+        <div class="kpi-value" id="kpi-eleg-total" style="color: #0284c7;">0</div>
+        <div class="kpi-sub" id="kpi-eleg-total-sub">CCESP / FCESP 1.0 a 1.9 (🖱️ Detalhes)</div>
+      </div>
       
       <div class="kpi-card clickable green" onclick="abrirModalComSubst()">
-        <div class="kpi-title">Cargos c/ Competência c/ Substitutos</div>
+        <div class="kpi-title">Cargos c/ Competência e Portaria</div>
         <div class="kpi-value" id="kpi-eleg-com" style="color: var(--accent-green);">0</div>
-        <div class="kpi-sub">Elegíveis preenchidos (🖱️ Detalhes)</div>
+        <div class="kpi-sub">Com substituto e portaria (🖱️ Detalhes)</div>
       </div>
 
       <div class="kpi-card clickable red" onclick="abrirModalSemSubst()">
-        <div class="kpi-title">Cargos c/ Competência s/ Substitutos</div>
+        <div class="kpi-title">Cargos c/ Competência s/ Subst. ou s/ Portaria</div>
         <div class="kpi-value" id="kpi-eleg-sem" style="color: var(--accent-red);">0</div>
-        <div class="kpi-sub">Elegíveis pendentes (🖱️ Detalhes)</div>
+        <div class="kpi-sub" id="kpi-eleg-sem-sub">Sem substituto ou sem portaria (🖱️ Detalhes)</div>
       </div>
 
       <div class="kpi-card purple">
@@ -875,15 +881,30 @@
     </div>
   </div>
 
+  <div id="modalElegTotal" class="modal-overlay" onclick="fecharModalFora(event, 'modalElegTotal')">
+    <div class="modal-card">
+      <div class="modal-header">
+        <h3>Cargos c/ Competência para Substituição (CCESP / FCESP 1.0 a 1.9)</h3>
+        <button class="close-btn" onclick="fecharModalElegTotal()">&times;</button>
+      </div>
+      <div class="modal-body">
+        <div class="filter-bar">
+          <input type="text" id="filtroModalElegTotal" placeholder="Filtrar lotação, cargo, nível, titular ou substituto..." onkeyup="filtrarModalElegTotal()">
+        </div>
+        <div id="conteudoModalElegTotal"></div>
+      </div>
+    </div>
+  </div>
+
   <div id="modalComSubst" class="modal-overlay" onclick="fecharModalFora(event, 'modalComSubst')">
     <div class="modal-card">
       <div class="modal-header">
-        <h3>Cargos c/ Competência com Substitutos</h3>
+        <h3>Cargos c/ Competência e Portaria</h3>
         <button class="close-btn" onclick="fecharModalComSubst()">&times;</button>
       </div>
       <div class="modal-body">
         <div class="filter-bar">
-          <input type="text" id="filtroModalComSubst" placeholder="Filtrar lotação, cargo ou substituto..." onkeyup="filtrarModalComSubst()">
+          <input type="text" id="filtroModalComSubst" placeholder="Filtrar lotação, cargo, substituto ou portaria..." onkeyup="filtrarModalComSubst()">
         </div>
         <div id="conteudoModalComSubst"></div>
       </div>
@@ -893,12 +914,12 @@
   <div id="modalSemSubst" class="modal-overlay" onclick="fecharModalFora(event, 'modalSemSubst')">
     <div class="modal-card">
       <div class="modal-header">
-        <h3>Cargos c/ Competência sem Substitutos</h3>
+        <h3>Cargos c/ Competência sem Substitutos ou sem Portaria</h3>
         <button class="close-btn" onclick="fecharModalSemSubst()">&times;</button>
       </div>
       <div class="modal-body">
         <div class="filter-bar">
-          <input type="text" id="filtroModalSemSubst" placeholder="Filtrar lotação, cargo ou titular..." onkeyup="filtrarModalSemSubst()">
+          <input type="text" id="filtroModalSemSubst" placeholder="Filtrar lotação, cargo, titular, substituto ou pendência..." onkeyup="filtrarModalSemSubst()">
         </div>
         <div id="conteudoModalSemSubst"></div>
       </div>
@@ -19701,15 +19722,21 @@
 
     function temCompetenciaSubstituicao(item) {
       const nivel = (item['Nível'] || '').toUpperCase().trim();
-      const cargo = (item['Cargo'] || '').toUpperCase().trim();
-      if (nivel.includes('1.')) return true;
-      const cargosChefia = ['PRESIDENTE', 'VICE-PRESIDENTE', 'CHEFE', 'DIRETOR', 'COORDENADOR', 'SUPERINTENDENTE'];
-      return cargosChefia.some(c => cargo.includes(c));
+      return /^(CCESP|FCESP)\s*1\./i.test(nivel);
     }
 
     function possuiSubstituto(item) {
       const subst = (item['Substituto'] || '').trim();
       return subst !== '' && subst.toUpperCase() !== 'SUBSTITUTO' && subst.toUpperCase() !== 'NAN';
+    }
+
+    function possuiPortaria(item) {
+      const portaria = (item['Portaria'] || '').trim();
+      return /^PORTARIA\b/i.test(portaria);
+    }
+
+    function possuiSubstitutoEPortaria(item) {
+      return possuiSubstituto(item) && possuiPortaria(item);
     }
 
     function ehRegistroRevogacao(item) {
@@ -19770,7 +19797,7 @@
 
     function inicializarDashboard() {
       // --- CACHE LOCAL: evita dashboard em branco enquanto GitHub Pages propaga ---
-      const CACHE_KEY = 'detran_dashboard_cache_v1';
+      const CACHE_KEY = 'detran_dashboard_cache_v2';
 
       function salvarCacheLocal(dados, timestamp) {
         try {
@@ -19825,8 +19852,10 @@
         const lotacoesUnicas = new Set(DADOS_VALIDOS.map(function(d) { return d['Lotação']; }).filter(Boolean));
 
         const elegiveis = DADOS_VALIDOS.filter(temCompetenciaSubstituicao);
-        const elegiveisComSubst = elegiveis.filter(possuiSubstituto);
-        const elegiveisSemSubst = elegiveis.filter(function(d) { return !possuiSubstituto(d); });
+        const elegiveisComSubst = elegiveis.filter(possuiSubstitutoEPortaria);
+        const elegiveisSemSubst = elegiveis.filter(function(d) { return !possuiSubstitutoEPortaria(d); });
+        const elegiveisSemSubstTotal = elegiveis.filter(function(d) { return !possuiSubstituto(d); });
+        const elegiveisComSubstSemPortaria = elegiveis.filter(function(d) { return possuiSubstituto(d) && !possuiPortaria(d); });
         const listaRevogacoes = DADOS_VALIDOS.filter(ehRegistroRevogacao);
 
         let qtdAguardandoAssinatura = 0;
@@ -19852,8 +19881,14 @@
 
         document.getElementById('kpi-total').textContent = totalCargos;
         document.getElementById('kpi-lotacoes').textContent = lotacoesUnicas.size + ' lotações (🖱️ Ver)';
+        const elElegTotal = document.getElementById('kpi-eleg-total');
+        if (elElegTotal) elElegTotal.textContent = elegiveis.length;
         document.getElementById('kpi-eleg-com').textContent = elegiveisComSubst.length;
         document.getElementById('kpi-eleg-sem').textContent = elegiveisSemSubst.length;
+        const elElegSemSub = document.getElementById('kpi-eleg-sem-sub');
+        if (elElegSemSub) {
+          elElegSemSub.textContent = elegiveisSemSubstTotal.length + ' s/ subst. · ' + elegiveisComSubstSemPortaria.length + ' s/ portaria (🖱️ Ver)';
+        }
         document.getElementById('kpi-aguardando-assinatura').textContent = qtdAguardandoAssinatura;
         document.getElementById('kpi-revogacoes').textContent = listaRevogacoes.length;
 
@@ -19920,7 +19955,7 @@
         window.chartCoberturaInstance = new Chart(ctxCob.getContext('2d'), {
           type: 'doughnut',
           data: {
-            labels: ['Com substituto', 'Sem substituto'],
+            labels: ['Com substituto e portaria', 'Sem substituto / Sem portaria'],
             datasets: [{
               data: total ? [com, sem] : [1],
               backgroundColor: total ? ['#16a34a', '#dc2626'] : ['#e2e8f0'],
@@ -19969,7 +20004,7 @@
               ctx.fillText(pctCom + '%', cx, cy - 10);
               ctx.font = '600 12px Segoe UI, sans-serif';
               ctx.fillStyle = '#64748b';
-              ctx.fillText('com substituto', cx, cy + 16);
+              ctx.fillText('c/ portaria', cx, cy + 16);
               ctx.restore();
             }
           }]
@@ -19979,9 +20014,9 @@
         if (leg) {
           leg.innerHTML =
             '<div class="donut-legend-item"><span class="donut-legend-dot" style="background:#16a34a"></span>' +
-            'Com substituto <span class="donut-legend-value">' + com + '</span></div>' +
+            'Com portaria <span class="donut-legend-value">' + com + '</span></div>' +
             '<div class="donut-legend-item"><span class="donut-legend-dot" style="background:#dc2626"></span>' +
-            'Sem substituto <span class="donut-legend-value">' + sem + '</span></div>';
+            'Sem subst. / portaria <span class="donut-legend-value">' + sem + '</span></div>';
         }
       }
 
@@ -20464,30 +20499,43 @@
       document.getElementById('conteudoModalTotal').innerHTML = construirHTMLAgrupado(filtrados, true, false);
     }
 
+    function abrirModalElegTotal() {
+      document.getElementById('filtroModalElegTotal').value = '';
+      const lista = DADOS_VALIDOS.filter(temCompetenciaSubstituicao);
+      document.getElementById('conteudoModalElegTotal').innerHTML = construirHTMLAgrupado(lista, true, true);
+      document.getElementById('modalElegTotal').style.display = 'flex';
+    }
+    function fecharModalElegTotal() { document.getElementById('modalElegTotal').style.display = 'none'; }
+    function filtrarModalElegTotal() {
+      const termo = document.getElementById('filtroModalElegTotal').value.toLowerCase();
+      const lista = DADOS_VALIDOS.filter(d => temCompetenciaSubstituicao(d) && JSON.stringify(d).toLowerCase().includes(termo));
+      document.getElementById('conteudoModalElegTotal').innerHTML = construirHTMLAgrupado(lista, true, true);
+    }
+
     function abrirModalComSubst() {
       document.getElementById('filtroModalComSubst').value = '';
-      const lista = DADOS_VALIDOS.filter(d => temCompetenciaSubstituicao(d) && possuiSubstituto(d));
+      const lista = DADOS_VALIDOS.filter(d => temCompetenciaSubstituicao(d) && possuiSubstitutoEPortaria(d));
       document.getElementById('conteudoModalComSubst').innerHTML = construirHTMLAgrupado(lista, true, true);
       document.getElementById('modalComSubst').style.display = 'flex';
     }
     function fecharModalComSubst() { document.getElementById('modalComSubst').style.display = 'none'; }
     function filtrarModalComSubst() {
       const termo = document.getElementById('filtroModalComSubst').value.toLowerCase();
-      const lista = DADOS_VALIDOS.filter(d => temCompetenciaSubstituicao(d) && possuiSubstituto(d) && JSON.stringify(d).toLowerCase().includes(termo));
+      const lista = DADOS_VALIDOS.filter(d => temCompetenciaSubstituicao(d) && possuiSubstitutoEPortaria(d) && JSON.stringify(d).toLowerCase().includes(termo));
       document.getElementById('conteudoModalComSubst').innerHTML = construirHTMLAgrupado(lista, true, true);
     }
 
     function abrirModalSemSubst() {
       document.getElementById('filtroModalSemSubst').value = '';
-      const lista = DADOS_VALIDOS.filter(d => temCompetenciaSubstituicao(d) && !possuiSubstituto(d));
-      document.getElementById('conteudoModalSemSubst').innerHTML = construirHTMLAgrupado(lista, false, false);
+      const lista = DADOS_VALIDOS.filter(d => temCompetenciaSubstituicao(d) && !possuiSubstitutoEPortaria(d));
+      document.getElementById('conteudoModalSemSubst').innerHTML = construirHTMLAgrupado(lista, true, true);
       document.getElementById('modalSemSubst').style.display = 'flex';
     }
     function fecharModalSemSubst() { document.getElementById('modalSemSubst').style.display = 'none'; }
     function filtrarModalSemSubst() {
       const termo = document.getElementById('filtroModalSemSubst').value.toLowerCase();
-      const lista = DADOS_VALIDOS.filter(d => temCompetenciaSubstituicao(d) && !possuiSubstituto(d) && JSON.stringify(d).toLowerCase().includes(termo));
-      document.getElementById('conteudoModalSemSubst').innerHTML = construirHTMLAgrupado(lista, false, false);
+      const lista = DADOS_VALIDOS.filter(d => temCompetenciaSubstituicao(d) && !possuiSubstitutoEPortaria(d) && JSON.stringify(d).toLowerCase().includes(termo));
+      document.getElementById('conteudoModalSemSubst').innerHTML = construirHTMLAgrupado(lista, true, true);
     }
 
     function abrirModalRevogacoes() {
