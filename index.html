@@ -828,7 +828,7 @@
 
       <div class="chart-card">
         <h3>Onde estão os processos</h3>
-        <div class="chart-subtitle">Quantidade de processos por status atual na planilha</div>
+        <div class="chart-subtitle">Processos em andamento por status atual na planilha (exclui publicados)</div>
         <div class="chart-container" id="containerGraficoStatus">
           <canvas id="graficoStatus"></canvas>
         </div>
@@ -19734,7 +19734,8 @@
 
     function obterPropriedade(obj, chavesPossiveis) {
       for (const chave of chavesPossiveis) {
-        const foundKey = Object.keys(obj).find(k => k.trim().toLowerCase() === chave.toLowerCase());
+        const chaveNorm = chave.replace(/\s+/g, ' ').trim().toLowerCase();
+        const foundKey = Object.keys(obj).find(k => k.replace(/\s+/g, ' ').trim().toLowerCase() === chaveNorm);
         if (foundKey && obj[foundKey] !== undefined && obj[foundKey] !== null) {
           return String(obj[foundKey]).trim();
         }
@@ -19752,8 +19753,12 @@
       return subst !== '' && subst.toUpperCase() !== 'SUBSTITUTO' && subst.toUpperCase() !== 'NAN';
     }
 
+    function obterPortaria(item) {
+      return obterPropriedade(item, ['Portaria de Publicação', 'Portaria de Publicacao', 'Portaria']);
+    }
+
     function possuiPortaria(item) {
-      const portaria = (item['Portaria'] || '').trim();
+      const portaria = obterPortaria(item);
       return /^PORTARIA\b/i.test(portaria);
     }
 
@@ -19763,13 +19768,13 @@
 
     function ehRegistroRevogacao(item) {
       const portariaRevog = obterPropriedade(item, ['PORTARIA REVOGAÇÃO', 'PORTARIA REVOGACAO', 'REVOGAÇÃO']);
-      const seiRevog = obterPropriedade(item, ['SEI REVOGAÇÃO', 'SEI REVOGACAO']);
+      const seiRevog = obterPropriedade(item, ['SEI REVOGADO', 'SEI REVOGAÇÃO', 'SEI REVOGACAO']);
       const subst = (item['Substituto'] || '').trim();
       const status = obterPropriedade(item, ['Status', 'STATUS']);
       const motivo = (item['Motivo'] || '').trim();
 
       if (portariaRevog !== '' && portariaRevog.toUpperCase() !== 'REVOGAÇÃO') return true;
-      if (seiRevog !== '' && seiRevog.toUpperCase() !== 'SEI REVOGAÇÃO') return true;
+      if (seiRevog !== '' && seiRevog.toUpperCase() !== 'SEI REVOGAÇÃO' && seiRevog.toUpperCase() !== 'SEI REVOGADO') return true;
       if (/revog/i.test(subst) || /revog/i.test(status) || /revog/i.test(motivo)) return true;
       return false;
     }
@@ -19787,7 +19792,7 @@
         substRevogado = substAtual !== 'Não informado' ? 'Substituição anterior registrada' : 'Não informado';
       }
 
-      const portariaRevogTexto = obterPropriedade(item, ['PORTARIA REVOGAÇÃO', 'PORTARIA REVOGACAO', 'REVOGAÇÃO']);
+      const portariaRevogTexto = obterPropriedade(item, ['REVOGAÇÃO / ANDAMENTO', 'PORTARIA REVOGAÇÃO', 'PORTARIA REVOGACAO', 'REVOGAÇÃO']);
       const linkRevog = obterPropriedade(item, ['Link Revogação', 'Link Revogacao', 'Link DOE', 'Link Portaria']);
 
       let portariaRevogacaoHtml = portariaRevogTexto || 'Não informada';
@@ -19795,7 +19800,7 @@
         portariaRevogacaoHtml = `<a href="${linkRevog}" target="_blank" class="link-portaria">🔗 ${portariaRevogTexto || 'Acessar Portaria de Revogação'} ↗</a>`;
       }
 
-      const seiRevogRaw = obterPropriedade(item, ['SEI REVOGAÇÃO', 'SEI REVOGACAO']);
+      const seiRevogRaw = obterPropriedade(item, ['SEI REVOGADO', 'SEI REVOGAÇÃO', 'SEI REVOGACAO']);
       const seiFinal = seiRevogRaw !== '' ? seiRevogRaw : 'Não informado';
 
       return {
@@ -19888,7 +19893,7 @@
           const statusVal = obterPropriedade(item, ['Status', 'STATUS']);
           const motivoVal = (item['Motivo'] || '').trim();
 
-          if (statusVal !== '' && statusVal.toUpperCase() !== 'STATUS') {
+          if (statusVal !== '' && statusVal.toUpperCase() !== 'STATUS' && !/^PUBLICAD[OA]S?$/i.test(statusVal)) {
             const chaveStatus = statusVal.toUpperCase();
             mapaOndeEstaoProcessos[chaveStatus] = (mapaOndeEstaoProcessos[chaveStatus] || 0) + 1;
           }
@@ -20060,7 +20065,7 @@
         chartStatusInstance = new Chart(ctxStatus.getContext('2d'), {
           type: 'bar',
           data: {
-            labels: labelsStatus.length ? labelsStatus : ['Nenhum status preenchido'],
+            labels: labelsStatus.length ? labelsStatus : ['Nenhum processo em andamento'],
             datasets: [{
               label: 'Qtd. de Processos',
               data: valoresStatus.length ? valoresStatus : [0],
@@ -20238,7 +20243,7 @@
         const lotacao = item['Lotação'] || '—';
         const local = item['LOCAL'] || item['LocalUnidade'] || '';
         const titular = item['Titular'] || 'Vago / Sem titular';
-        const portaria = item['Portaria'] || '';
+        const portaria = obterPortaria(item);
         const linkDoe = obterPropriedade(item, ['Link DOE', 'Link Portaria', 'Link DO', 'Link Diário Oficial', 'URL', 'Link']);
 
         html +=
@@ -20378,7 +20383,7 @@
             }
 
             if (comPortariaLink) {
-              const portariaTexto = c['Portaria'] || '';
+              const portariaTexto = obterPortaria(c);
               const linkPortaria = obterPropriedade(c, ['Link DOE', 'Link Portaria', 'Link DO', 'Link Diário Oficial', 'URL', 'Link']);
               
               if (portariaTexto || linkPortaria) {
@@ -20587,11 +20592,26 @@
 
       if (!DADOS_VALIDOS.length) return;
 
-      const colunas = ['GrupoHierarquico', 'Lotação', 'LOCAL', 'Cargo', 'Nível', 'Titular', 'Substituto', 'SEI Substituição', 'Portaria', 'Link DOE', 'PORTARIA REVOGAÇÃO', 'SEI REVOGAÇÃO', 'Status', 'Motivo'];
-      
+      const colunas = [
+        { titulo: 'Diretoria / Unidade', chaves: ['GrupoHierarquico'] },
+        { titulo: 'Lotação', chaves: ['Lotação'] },
+        { titulo: 'LOCAL', chaves: ['LOCAL'] },
+        { titulo: 'Cargo', chaves: ['Cargo'] },
+        { titulo: 'Nível', chaves: ['Nível'] },
+        { titulo: 'Titular', chaves: ['Titular'] },
+        { titulo: 'Substituto', chaves: ['Substituto'] },
+        { titulo: 'SEI Substituição', chaves: ['SEI Substituição'] },
+        { titulo: 'Portaria de Publicação', chaves: ['Portaria de Publicação', 'Portaria de Publicacao', 'Portaria'] },
+        { titulo: 'Link DOE', chaves: ['Link DOE'] },
+        { titulo: 'REVOGAÇÃO / ANDAMENTO', chaves: ['REVOGAÇÃO / ANDAMENTO', 'PORTARIA REVOGAÇÃO', 'PORTARIA REVOGACAO'] },
+        { titulo: 'SEI REVOGADO', chaves: ['SEI REVOGADO', 'SEI REVOGAÇÃO', 'SEI REVOGACAO'] },
+        { titulo: 'Status', chaves: ['Status'] },
+        { titulo: 'Motivo', chaves: ['Motivo'] }
+      ];
+
       colunas.forEach(col => {
         const th = document.createElement('th');
-        th.textContent = col === 'GrupoHierarquico' ? 'Diretoria / Unidade' : col;
+        th.textContent = col.titulo;
         thead.appendChild(th);
       });
 
@@ -20605,8 +20625,8 @@
         
         colunas.forEach(col => {
           const td = document.createElement('td');
-          const val = obterPropriedade(item, [col]) || '';
-          if (col.toLowerCase().includes('link') && val.startsWith('http')) {
+          const val = obterPropriedade(item, col.chaves) || '';
+          if (col.titulo.toLowerCase().includes('link') && val.startsWith('http')) {
             td.innerHTML = `<a href="${val}" target="_blank" class="link-portaria">Acessar DOE ↗</a>`;
           } else {
             td.textContent = val;
